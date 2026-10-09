@@ -31,3 +31,10 @@ El cuestionario suma los puntos de la opción seleccionada. El máximo es la sum
 `localhost:5432` es el PostgreSQL de la máquina donde corre Next.js. Una aplicación en la nube no puede acceder al localhost de tu computadora: usa un host accesible o ejecuta Next.js junto a tu PostgreSQL. Para conexiones remotas utiliza las opciones TLS verificadas de tu proveedor, por ejemplo `PGSSLMODE=verify-full`.
 
 La API devuelve puntos al navegador para este prototipo. Una evaluación certificada requeriría calificación en el servidor y autenticación.
+
+## Reiniciar y practicar módulos
+En el Dashboard, **Empezar desde cero** elimina únicamente `userLevel` y `completedBranches` del navegador, tras confirmar, y abre la evaluación inicial con preguntas actuales de PostgreSQL. Reiniciar el servidor o descargar GitHub no borra localStorage.
+
+Cada módulo disponible muestra una práctica con preguntas de `/api/preguntas?modulo=Básico` (también Intermedio y Avanzado). La columna `modulo` debe contener `Básico`, `Intermedio`, `Avanzado` o `Módulo Básico`, etc.; se ignoran mayúsculas, acentos y espacios exteriores. No se usa `dificultad` para asignar módulos. La práctica no cambia el nivel inicial ni completa ramas automáticamente; las 45 ramas siguen siendo el catálogo de aprendizaje.
+
+Para actualizar y reiniciar tu aplicación local: detén con Ctrl+C, ejecuta `git pull origin main`, `npm ci` y `npm run dev`. Conserva tu `.env` local. GitHub almacena código, no ejecuta el servidor.

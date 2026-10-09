@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import Questionnaire from '../../components/questionnaire';
+import RestartProgress from '../../components/restart-progress';
 import { useEffect, useState } from 'react';
 import type { Level } from '../../lib/evaluation';
 import { modules, parseCompletedBranches } from '../../lib/learning';
@@ -121,6 +123,7 @@ export default function Dashboard(){
     </section>
     <p className="text-xs leading-6 text-slate-400">Las métricas y la curva son simulaciones basadas en tu nivel de conocimiento; no representan mediciones de actividad real. SSO de demostración.</p>
    </section>
+<RestartProgress />
 <section aria-labelledby="modules-title" className="border-t border-slate-200 pt-10 sm:pt-14">
  <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold tracking-widest text-blue-700">TU RUTA DE APRENDIZAJE</p><h2 id="modules-title" className="mt-2 text-2xl font-semibold">Módulos de estudio</h2></div><Link href="/evaluacion" className="text-sm font-semibold text-blue-700">{userLevel ? 'Actualizar mi nivel' : 'Evaluar mi nivel'}</Link></div>
  <p className="mt-3 text-sm leading-6 text-slate-500">Avanza desde los fundamentos: domina el módulo anterior y vuelve a evaluar tus conocimientos para desbloquear el siguiente nivel.</p>
@@ -147,7 +150,7 @@ export default function Dashboard(){
      </li>;
    })}</ol>}
    {completedModuleBranches === selectedModule.branches.length && <p role="status" className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">¡Ruta {selectedModule.level} completada! Evalúa tus conocimientos para seguir avanzando.</p>}
- </div><Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
+ </div><Questionnaire key={selectedModule.level} module={selectedModule.level}/><Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
  </section>
   </main>
  );

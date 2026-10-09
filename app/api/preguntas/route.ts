@@ -5,7 +5,12 @@ import { isQuestionnaire } from '../../../lib/questionnaire';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const module = new URL(request.url).searchParams.get('modulo');
+  const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  if (normalizedModule && !['basico', 'intermedio', 'avanzado'].includes(normalizedModule)) {
+    return NextResponse.json({ error: 'Módulo inválido.' }, { status: 400 });
+  }
   try {
     const { rows } = await getPool().query(`
       SELECT p.id AS pregunta_id, p.texto, p.dificultad, p.modulo,
@@ -16,9 +21,11 @@ export async function GET() {
         ) AS opciones
       FROM preguntas p
       LEFT JOIN opciones o ON o.pregunta_id = p.id
+      WHERE ($1::text IS NULL OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = $1
+        OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = 'modulo ' || $1)
       GROUP BY p.id, p.texto, p.dificultad, p.modulo
       ORDER BY p.id
-    `);
+    `, [normalizedModule ?? null]);
     if (!isQuestionnaire(rows)) {
       return NextResponse.json({ error: 'Hay preguntas incompletas o puntos inválidos en la base de datos.' }, { status: 422 });
     }
