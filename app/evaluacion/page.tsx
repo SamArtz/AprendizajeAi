@@ -9,6 +9,7 @@ export default function Evaluation() {
   const [currentStep, setCurrentStep] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [storageError, setStorageError] = useState(false);
   const [answers, setAnswers] = useState<number[]>([]);
   const isFinished = currentStep === questions.length;
   const question = questions[currentStep];
@@ -16,7 +17,16 @@ export default function Evaluation() {
 
   function next() {
     if (selected === null || isFinished) return;
-    setScore(previous => previous + (selected === question.correct ? pointsByDifficulty[question.difficulty] : 0));
+    const finalScore = score + (selected === question.correct ? pointsByDifficulty[question.difficulty] : 0);
+    if (currentStep === questions.length - 1) {
+      try {
+        localStorage.setItem('userLevel', evaluateScore(finalScore));
+        setStorageError(false);
+      } catch {
+        setStorageError(true);
+      }
+    }
+    setScore(finalScore);
     setAnswers(previous => [...previous, selected]);
     setCurrentStep(previous => previous + 1);
     setSelected(null);
@@ -27,6 +37,7 @@ export default function Evaluation() {
     setSelected(null);
     setScore(0);
     setAnswers([]);
+    setStorageError(false);
   }
 
   return (
@@ -68,6 +79,7 @@ export default function Evaluation() {
             <p className="mt-2 text-sm text-slate-500">{answers.filter((answer, index) => answer === questions[index].correct).length} de {questions.length} respuestas correctas</p>
             <p className="mt-4 text-xs leading-6 text-slate-400">Resultado orientativo; no constituye una certificación profesional.</p>
           </div>
+          {storageError && <p role="alert" className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo guardar tu nivel. Habilita el almacenamiento del navegador y repite la evaluación para conectarlo con el Dashboard.</p>}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/dashboard" className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-900">Continuar al Dashboard<ArrowRight size={16}/></Link>
             <button onClick={reset} className="flex items-center gap-2 rounded-lg border border-slate-200 px-5 py-3 text-sm hover:bg-slate-50"><RotateCcw size={16}/>Repetir evaluación</button>
@@ -84,7 +96,7 @@ export default function Evaluation() {
           </details>
         </div>}
       </section>
-      <p className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck size={14}/>Respuestas solo en memoria. No se envían ni se guardan.</p>
+      <p className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck size={14}/>Solo tu nivel se guarda en este navegador. Tus respuestas no se envían ni se guardan.</p>
     </main>
   );
 }
