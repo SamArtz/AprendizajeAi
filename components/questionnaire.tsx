@@ -17,7 +17,7 @@ export default function Questionnaire({ module }: { module?: Level }) {
       setLoading(true);
       setLoadError(null);
       try {
-        const response = await fetch(module ? `/api/preguntas?modulo=${encodeURIComponent(module)}` : '/api/preguntas', { signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(`/api/preguntas?modulo=${encodeURIComponent(module ? `Módulo ${module}` : 'Evaluacion Inicial')}`, { signal: controller.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('No se pudieron cargar las preguntas. Revisa la conexión y vuelve a intentarlo.');
         const data: unknown = await response.json();
         if (!isQuestionnaire(data)) throw new Error('El cuestionario contiene preguntas u opciones inválidas.');

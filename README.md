@@ -38,3 +38,5 @@ En el Dashboard, **Empezar desde cero** elimina únicamente `userLevel` y `compl
 Cada módulo disponible muestra una práctica con preguntas de `/api/preguntas?modulo=Básico` (también Intermedio y Avanzado). La columna `modulo` debe contener `Básico`, `Intermedio`, `Avanzado` o `Módulo Básico`, etc.; se ignoran mayúsculas, acentos y espacios exteriores. No se usa `dificultad` para asignar módulos. La práctica no cambia el nivel inicial ni completa ramas automáticamente; las 45 ramas siguen siendo el catálogo de aprendizaje.
 
 Para actualizar y reiniciar tu aplicación local: detén con Ctrl+C, ejecuta `git pull origin main`, `npm ci` y `npm run dev`. Conserva tu `.env` local. GitHub almacena código, no ejecuta el servidor.
+
+El cuestionario inicial solicita únicamente `modulo=Evaluacion Inicial`; las prácticas solicitan `Módulo Básico`, `Módulo Intermedio` y `Módulo Avanzado`, de acuerdo con los valores de tu base de datos. La API sin filtro sigue disponible para consultar todas las preguntas.

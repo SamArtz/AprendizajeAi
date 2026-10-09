@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const module = new URL(request.url).searchParams.get('modulo');
   const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  if (normalizedModule && !['basico', 'intermedio', 'avanzado'].includes(normalizedModule)) {
+  if (normalizedModule && !['evaluacion inicial', 'basico', 'intermedio', 'avanzado', 'modulo basico', 'modulo intermedio', 'modulo avanzado'].includes(normalizedModule)) {
     return NextResponse.json({ error: 'Módulo inválido.' }, { status: 400 });
   }
   try {
