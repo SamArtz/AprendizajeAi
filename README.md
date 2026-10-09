@@ -40,3 +40,6 @@ Cada módulo disponible muestra una práctica con preguntas de `/api/preguntas?m
 Para actualizar y reiniciar tu aplicación local: detén con Ctrl+C, ejecuta `git pull origin main`, `npm ci` y `npm run dev`. Conserva tu `.env` local. GitHub almacena código, no ejecuta el servidor.
 
 El cuestionario inicial solicita únicamente `modulo=Evaluacion Inicial`; las prácticas solicitan `Módulo Básico`, `Módulo Intermedio` y `Módulo Avanzado`, de acuerdo con los valores de tu base de datos. La API sin filtro sigue disponible para consultar todas las preguntas.
+
+## Cuestionarios por lección
+`Abrir módulo` solo despliega sus ramas. `Completar lección` abre el cuestionario exclusivo de esa rama (`/api/preguntas?modulo=Módulo Básico&rama=basico-1`, por ejemplo). Ejecuta primero `sql/preguntas-ramas-extra.sql` para añadir `rama_id` y las 135 preguntas. La API verifica que el ID de rama pertenece al módulo y filtra por ambos campos; no mezcla preguntas de otras lecciones. Al responder todas las preguntas, `Guardar lección completada` registra el progreso y desbloquea la siguiente. No se exige nota mínima; completar significa responder el cuestionario. Salir antes no completa la rama. La evaluación inicial sigue funcionando sin `rama_id`.

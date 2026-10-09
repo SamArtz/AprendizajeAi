@@ -28,6 +28,7 @@ export default function Dashboard(){
  const [completedBranches, setCompletedBranches] = useState<string[]>([]);
  const [branchesLoaded, setBranchesLoaded] = useState(false);
  const [branchStorageError, setBranchStorageError] = useState(false);
+ const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
  const [activeModule, setActiveModule] = useState<Level | null>(null);
  useEffect(() => {
    function readLevel() {
@@ -38,6 +39,7 @@ export default function Dashboard(){
      } catch { setUserLevel(null); setStorageError(true); }
      setLoaded(true);
      setActiveModule(null);
+     setActiveBranchId(null);
    }
    readLevel();
    function onStorage(event: StorageEvent) {
@@ -77,6 +79,7 @@ export default function Dashboard(){
  }
  const levelIndex = userLevel === null ? -1 : levels.indexOf(userLevel);
  const selectedModule = modules.find(module => module.level === activeModule);
+ const selectedBranch = selectedModule?.branches.find(branch => branch.id === activeBranchId);
  const completedModuleBranches = selectedModule?.branches.filter(branch => completedBranches.includes(branch.id)).length ?? 0;
  const metrics = userLevel ? metricsByLevel[userLevel] : null;
  const chartData = metrics ? days.map((day, index) => ({ day, score: metrics.efficiency[index] })) : [];
@@ -134,10 +137,10 @@ export default function Dashboard(){
      <div className="flex items-center justify-between"><span className="rounded-lg bg-blue-50 p-3 text-blue-700">{locked ? <Lock aria-label="Bloqueado" size={22}/> : <BookOpen size={22}/>}</span><span className="text-xs font-medium text-slate-500">{locked ? 'Bloqueado' : 'Disponible'}</span></div>
      <h3 className="mt-5 text-xl font-semibold">{module.level}</h3><p className="mt-2 text-sm font-medium">{module.title}</p><p className="mt-3 text-sm leading-6 text-slate-500">{module.description}</p><p className="mt-3 text-xs font-medium text-blue-700">{module.branches.length} lecciones secuenciales</p>
      <p className="mb-5 mt-5 text-xs leading-5 text-slate-500">{locked ? (!userLevel ? 'Requiere evaluación inicial.' : `Supera el módulo ${levels[index - 1]} y acredita el nivel ${module.level} en la evaluación.`) : 'Acceso habilitado por tu nivel de evaluación.'}</p>
-     <button disabled={locked} onClick={() => setActiveModule(module.level)} className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-blue-950 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? 'Módulo bloqueado' : 'Abrir módulo'}{locked ? <Lock size={16}/> : <ArrowRight size={16}/>}</button>
+     <button disabled={locked} onClick={() => { setActiveModule(module.level); setActiveBranchId(null); }} className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-blue-950 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? 'Módulo bloqueado' : 'Abrir módulo'}{locked ? <Lock size={16}/> : <ArrowRight size={16}/>}</button>
    </article>;
  })}</div>
- {selectedModule && <section aria-labelledby="active-module-title" className="mt-6 rounded-xl border border-blue-100 bg-white p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h3 id="active-module-title" className="text-lg font-semibold">{selectedModule.level}: {selectedModule.title}</h3><button onClick={() => setActiveModule(null)} className="text-sm text-slate-500">Cerrar módulo</button></div><p className="mt-2 text-xs text-slate-500">Ruta secuencial · Completar lecciones no modifica tu nivel de evaluación.</p><div className="mt-6">
+ {selectedModule && <section aria-labelledby="active-module-title" className="mt-6 rounded-xl border border-blue-100 bg-white p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h3 id="active-module-title" className="text-lg font-semibold">{selectedModule.level}: {selectedModule.title}</h3><button onClick={() => { setActiveModule(null); setActiveBranchId(null); }} className="text-sm text-slate-500">Cerrar módulo</button></div><p className="mt-2 text-xs text-slate-500">Ruta secuencial · Completar lecciones no modifica tu nivel de evaluación.</p><div className="mt-6">
    <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">Tu recorrido {selectedModule.level}</h4><p aria-live="polite" className="text-sm text-slate-500">{completedModuleBranches} de {selectedModule.branches.length} lecciones completadas</p></div>
    <p className="mt-2 text-sm leading-6 text-slate-500">Completa cada lección para desbloquear la siguiente. Sigue el orden de tu ruta.</p>
    {branchStorageError && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo acceder al almacenamiento del navegador. Tu progreso queda solo en esta sesión hasta que puedas guardarlo.</p>}
@@ -146,11 +149,11 @@ export default function Dashboard(){
      const locked = index > 0 && !completedBranches.includes(branches[index - 1].id);
      return <li key={branch.id} aria-label={branch.title} aria-disabled={locked} className={`rounded-xl border p-5 sm:p-6 ${locked ? 'opacity-50 pointer-events-none border-slate-200 bg-slate-100' : completed ? 'border-emerald-200 bg-emerald-50/40' : 'border-blue-200 bg-white shadow-sm'}`}>
        <div className="flex items-start gap-4"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${locked ? 'bg-slate-200 text-slate-500' : completed ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{locked ? <Lock aria-label="Lección bloqueada" size={19}/> : completed ? <CheckCircle2 aria-label="Lección completada" size={20}/> : <BookOpen size={20}/>}</span><div><p className="text-xs font-medium text-slate-500">LECCIÓN {index + 1} · {locked ? 'Bloqueada' : completed ? 'Completada' : 'Disponible'}</p><h5 className="mt-2 text-base font-semibold">{branch.title}</h5><p className="mt-2 text-sm leading-6 text-slate-600">{branch.description}</p></div></div>
-       <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">{locked ? `Completa «${branches[index - 1].title}» para continuar.` : completed ? 'Has completado esta etapa de tu ruta.' : 'Marca esta lección al terminar para seguir avanzando.'}</p><button disabled={locked || completed} onClick={() => completeBranch(branch.id)} className="inline-flex items-center gap-2 rounded-lg bg-blue-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? <Lock size={16}/> : completed ? <CheckCircle2 size={16}/> : <ArrowRight size={16}/>} {completed ? 'Lección completada' : 'Completar lección'}</button></div>
+       <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">{locked ? `Completa «${branches[index - 1].title}» para continuar.` : completed ? 'Has completado esta etapa de tu ruta.' : 'Responde las preguntas de esta lección para seguir avanzando.'}</p><button disabled={locked || completed} onClick={() => { setActiveBranchId(branch.id); setTimeout(() => document.getElementById('lesson-questionnaire')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} className="inline-flex items-center gap-2 rounded-lg bg-blue-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? <Lock size={16}/> : completed ? <CheckCircle2 size={16}/> : <ArrowRight size={16}/>} {completed ? 'Lección completada' : 'Completar lección'}</button></div>
      </li>;
    })}</ol>}
    {completedModuleBranches === selectedModule.branches.length && <p role="status" className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">¡Ruta {selectedModule.level} completada! Evalúa tus conocimientos para seguir avanzando.</p>}
- </div><Questionnaire key={selectedModule.level} module={selectedModule.level}/><Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
+ </div>{selectedBranch && <div id="lesson-questionnaire" className="mt-8 border-t border-slate-200"><Questionnaire key={selectedBranch.id} module={selectedModule.level} branch={selectedBranch} onCancel={() => setActiveBranchId(null)} onComplete={() => { completeBranch(selectedBranch.id); setActiveBranchId(null); }}/></div>}<Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
  </section>
   </main>
  );

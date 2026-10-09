@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { modules } from '../../../lib/learning';
 import { getPool } from '../../../lib/db';
 import { isQuestionnaire } from '../../../lib/questionnaire';
 
@@ -10,6 +11,14 @@ export async function GET(request: Request) {
   const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
   if (normalizedModule && !['evaluacion inicial', 'basico', 'intermedio', 'avanzado', 'modulo basico', 'modulo intermedio', 'modulo avanzado'].includes(normalizedModule)) {
     return NextResponse.json({ error: 'Módulo inválido.' }, { status: 400 });
+  }
+  const branch = new URL(request.url).searchParams.get('rama');
+  if (branch) {
+    const owner = modules.find(item => item.branches.some(item => item.id === branch));
+    const level = owner?.level.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (!owner || !normalizedModule || ![level, `modulo ${level}`].includes(normalizedModule)) {
+      return NextResponse.json({ error: 'La rama no pertenece al módulo solicitado.' }, { status: 400 });
+    }
   }
   try {
     const { rows } = await getPool().query(`
@@ -23,9 +32,10 @@ export async function GET(request: Request) {
       LEFT JOIN opciones o ON o.pregunta_id = p.id
       WHERE ($1::text IS NULL OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = $1
         OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = 'modulo ' || $1)
+      ${branch ? 'AND p.rama_id = $2' : ''}
       GROUP BY p.id, p.texto, p.dificultad, p.modulo
       ORDER BY p.id
-    `, [normalizedModule ?? null]);
+    `, branch ? [normalizedModule ?? null, branch] : [normalizedModule ?? null]);
     if (!isQuestionnaire(rows)) {
       return NextResponse.json({ error: 'Hay preguntas incompletas o puntos inválidos en la base de datos.' }, { status: 422 });
     }

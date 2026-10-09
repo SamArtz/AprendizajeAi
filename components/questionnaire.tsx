@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShieldCheck, BrainCircuit, CheckCircle2, RotateCcw } from 'lucide-react';
 import { evaluateScore, type Level } from '../lib/evaluation';
+import type { Branch } from '../lib/learning';
 import { isQuestionnaire, type DatabaseQuestion } from '../lib/questionnaire';
 
-export default function Questionnaire({ module }: { module?: Level }) {
+export default function Questionnaire({ module, branch, onComplete, onCancel }: { module?: Level; branch?: Branch; onComplete?: () => void; onCancel?: () => void }) {
   const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -17,11 +18,11 @@ export default function Questionnaire({ module }: { module?: Level }) {
       setLoading(true);
       setLoadError(null);
       try {
-        const response = await fetch(`/api/preguntas?modulo=${encodeURIComponent(module ? `Módulo ${module}` : 'Evaluacion Inicial')}`, { signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(`/api/preguntas?modulo=${encodeURIComponent(module ? `Módulo ${module}` : 'Evaluacion Inicial')}${branch ? `&rama=${encodeURIComponent(branch.id)}` : ''}`, { signal: controller.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('No se pudieron cargar las preguntas. Revisa la conexión y vuelve a intentarlo.');
         const data: unknown = await response.json();
         if (!isQuestionnaire(data)) throw new Error('El cuestionario contiene preguntas u opciones inválidas.');
-        if (!data.length) throw new Error('No hay preguntas disponibles en la base de datos.');
+        if (!data.length) throw new Error('No hay preguntas disponibles para esta lección. Comprueba que ejecutaste el seed y que su rama_id coincide.');
         if (!controller.signal.aborted) setQuestions(data);
       } catch (error) {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : 'Error al cargar el cuestionario.');
@@ -29,7 +30,7 @@ export default function Questionnaire({ module }: { module?: Level }) {
     }
     void load();
       return () => controller.abort();
-  }, [retry, module]);
+  }, [retry, module, branch]);
   const maxScore = questions.reduce((sum, item) => sum + Math.max(...item.opciones.map(option => option.puntos)), 0);
   // Mantiene los cortes históricos sobre 300 aunque cambie el tamaño del banco.
   const getLevel = (points: number) => evaluateScore(Math.round(points / maxScore * 300));
@@ -73,8 +74,9 @@ export default function Questionnaire({ module }: { module?: Level }) {
   return (
     <section className="mx-auto max-w-3xl px-6 py-10">
       <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500"><ArrowLeft size={16}/>Volver al dashboard</Link>
+      {onCancel && <button onClick={onCancel} className="ml-4 text-sm font-medium text-blue-700">Volver a las lecciones</button>}
       <p className="mt-10 text-xs font-semibold tracking-widest text-blue-700">{module ? `PRÁCTICA DEL MÓDULO ${module.toUpperCase()}` : 'EVALUACIÓN INICIAL DE CONOCIMIENTOS EN IA'}</p>
-      <h1 className="mt-3 text-3xl font-semibold">{isFinished ? 'Tu análisis está listo.' : module ? `Practica el módulo ${module}` : 'Tu próximo paso hacia la IA.'}</h1>
+      <h1 className="mt-3 text-3xl font-semibold">{isFinished ? 'Tu análisis está listo.' : branch ? branch.title : module ? `Practica el módulo ${module}` : 'Tu próximo paso hacia la IA.'}</h1>
       <p className="mt-3 leading-7 text-slate-500">{questions.length} preguntas. Conoce tu nivel y descubre qué puedes reforzar.</p>
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9">
         <div className="flex flex-wrap justify-between gap-2 text-xs">
@@ -111,7 +113,7 @@ export default function Questionnaire({ module }: { module?: Level }) {
           </div>
           {storageError && <p role="alert" className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo guardar tu nivel. Habilita el almacenamiento del navegador y repite la evaluación para conectarlo con el Dashboard.</p>}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/dashboard" className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-900">Continuar al Dashboard<ArrowRight size={16}/></Link>
+            {onComplete ? <button onClick={onComplete} className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white">Guardar lección completada<CheckCircle2 size={16}/></button> : <Link href="/dashboard" className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-900">Continuar al Dashboard<ArrowRight size={16}/></Link>}
             <button onClick={reset} className="flex items-center gap-2 rounded-lg border border-slate-200 px-5 py-3 text-sm hover:bg-slate-50"><RotateCcw size={16}/>Repetir evaluación</button>
           </div>
           <details className="mt-9 border-t border-slate-100 pt-6">
