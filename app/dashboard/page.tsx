@@ -18,8 +18,40 @@ const metricsByLevel: Record<Level, LevelMetrics> = {
 };
 const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 const levels: Level[] = ['Básico', 'Intermedio', 'Avanzado'];
-const modules = [
-  { level: 'Básico' as const, title: 'Fundamentos y uso responsable', description: 'Comprende la IA, crea tus primeros prompts y protege la información.', lessons: ['Define una tarea concreta, proporciona contexto y solicita un formato de respuesta.', 'Evita introducir credenciales o datos confidenciales en herramientas públicas.', 'Contrasta las respuestas con fuentes fiables antes de utilizarlas.'] },
+interface Branch {
+  id: string;
+  title: string;
+  description: string;
+}
+interface LearningModule {
+  level: Level;
+  title: string;
+  description: string;
+  lessons: string[];
+  branches?: readonly Branch[];
+}
+const basicBranches: readonly Branch[] = [
+  { id: 'basico-1', title: 'Fundamentos de IA Generativa', description: 'Comprende qué es un LLM y cómo procesa el lenguaje natural.' },
+  { id: 'basico-2', title: 'Anatomía de un Prompt Perfecto', description: 'Aprende a estructurar instrucciones claras utilizando roles y contexto.' },
+  { id: 'basico-3', title: 'Privacidad y Seguridad de Datos', description: 'Reglas de oro corporativas sobre qué información no compartir jamás en herramientas públicas.' },
+  { id: 'basico-4', title: 'Automatización de Tareas Diarias', description: 'Casos prácticos controlados: redacción de correos, resúmenes de minutas y traducciones.' },
+];
+// Solo se acepta un prefijo consecutivo de ramas completadas.
+function parseCompletedBranches(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const saved: unknown = JSON.parse(raw);
+    if (!Array.isArray(saved)) return [];
+    const completed: string[] = [];
+    for (const branch of basicBranches) {
+      if (!saved.includes(branch.id)) break;
+      completed.push(branch.id);
+    }
+    return completed;
+  } catch { return []; }
+}
+const modules: LearningModule[] = [
+  { level: 'Básico' as const, branches: basicBranches, title: 'Fundamentos y uso responsable', description: 'Comprende la IA, crea tus primeros prompts y protege la información.', lessons: ['Define una tarea concreta, proporciona contexto y solicita un formato de respuesta.', 'Evita introducir credenciales o datos confidenciales en herramientas públicas.', 'Contrasta las respuestas con fuentes fiables antes de utilizarlas.'] },
   { level: 'Intermedio' as const, title: 'IA aplicada a tu trabajo', description: 'Mejora tus instrucciones y evalúa la calidad de las respuestas.', lessons: ['Divide las tareas complejas en pasos y añade ejemplos de resultados esperados.', 'Evalúa posibles alucinaciones y sesgos con casos representativos.', 'Compara resultados usando criterios de calidad definidos antes de generar.'] },
   { level: 'Avanzado' as const, title: 'Integración y gobernanza', description: 'Explora RAG, agentes y controles para adoptar IA de forma responsable.', lessons: ['Utiliza RAG para aportar información pertinente y verifica las fuentes recuperadas.', 'Limita los permisos de los agentes y trata el contenido externo como no confiable.', 'Monitoriza el rendimiento con datos no vistos y considera el coste de los errores.'] },
 ];
@@ -27,6 +59,9 @@ export default function Dashboard(){
  const [userLevel, setUserLevel] = useState<Level | null>(null);
  const [loaded, setLoaded] = useState(false);
  const [storageError, setStorageError] = useState(false);
+ const [completedBranches, setCompletedBranches] = useState<string[]>([]);
+ const [branchesLoaded, setBranchesLoaded] = useState(false);
+ const [branchStorageError, setBranchStorageError] = useState(false);
  const [activeModule, setActiveModule] = useState<Level | null>(null);
  useEffect(() => {
    function readLevel() {
@@ -45,6 +80,33 @@ export default function Dashboard(){
    window.addEventListener('storage', onStorage);
    return () => window.removeEventListener('storage', onStorage);
  }, []);
+ useEffect(() => {
+   function readBranches() {
+     try {
+       setCompletedBranches(parseCompletedBranches(localStorage.getItem('completedBranches')));
+       setBranchStorageError(false);
+     } catch { setCompletedBranches([]); setBranchStorageError(true); }
+     setBranchesLoaded(true);
+   }
+   readBranches();
+   function onStorage(event: StorageEvent) {
+     if (event.key === 'completedBranches' || event.key === null) readBranches();
+   }
+   window.addEventListener('storage', onStorage);
+   return () => window.removeEventListener('storage', onStorage);
+ }, []);
+
+ function completeBranch(id: string) {
+   const index = basicBranches.findIndex(branch => branch.id === id);
+   if (!branchesLoaded || userLevel === null || index < 0 || completedBranches.includes(id)) return;
+   if (index > 0 && !completedBranches.includes(basicBranches[index - 1].id)) return;
+   const updated = [...completedBranches, id];
+   try {
+     localStorage.setItem('completedBranches', JSON.stringify(updated));
+     setBranchStorageError(false);
+   } catch { setBranchStorageError(true); }
+   setCompletedBranches(updated);
+ }
  const levelIndex = userLevel === null ? -1 : levels.indexOf(userLevel);
  const selectedModule = modules.find(module => module.level === activeModule);
  const metrics = userLevel ? metricsByLevel[userLevel] : null;
@@ -105,7 +167,20 @@ export default function Dashboard(){
      <button disabled={locked} onClick={() => setActiveModule(module.level)} className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-blue-950 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? 'Módulo bloqueado' : 'Abrir módulo'}{locked ? <Lock size={16}/> : <ArrowRight size={16}/>}</button>
    </article>;
  })}</div>
- {selectedModule && <section aria-labelledby="active-module-title" className="mt-6 rounded-xl border border-blue-100 bg-white p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h3 id="active-module-title" className="text-lg font-semibold">{selectedModule.level}: {selectedModule.title}</h3><button onClick={() => setActiveModule(null)} className="text-sm text-slate-500">Cerrar módulo</button></div><p className="mt-2 text-xs text-slate-500">Guía introductoria · La lectura no modifica tu nivel de evaluación.</p><ul className="mt-5 space-y-4">{selectedModule.lessons.map(lesson=><li key={lesson} className="flex gap-3 text-sm leading-6 text-slate-600"><CheckCircle2 size={18} className="mt-1 shrink-0 text-blue-600"/>{lesson}</li>)}</ul><Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
+ {selectedModule && <section aria-labelledby="active-module-title" className="mt-6 rounded-xl border border-blue-100 bg-white p-6"><div className="flex flex-wrap items-center justify-between gap-3"><h3 id="active-module-title" className="text-lg font-semibold">{selectedModule.level}: {selectedModule.title}</h3><button onClick={() => setActiveModule(null)} className="text-sm text-slate-500">Cerrar módulo</button></div><p className="mt-2 text-xs text-slate-500">Guía introductoria · La lectura no modifica tu nivel de evaluación.</p>{selectedModule.branches ? <div className="mt-6">
+   <div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold">Tu recorrido Básico</h4><p aria-live="polite" className="text-sm text-slate-500">{completedBranches.length} de {selectedModule.branches.length} lecciones completadas</p></div>
+   <p className="mt-2 text-sm leading-6 text-slate-500">Completa cada lección para desbloquear la siguiente. Sigue el orden de tu ruta.</p>
+   {branchStorageError && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo acceder al almacenamiento del navegador. Tu progreso queda solo en esta sesión hasta que puedas guardarlo.</p>}
+   {!branchesLoaded ? <p className="mt-5 text-sm text-slate-500">Cargando tu recorrido…</p> : <ol className="mt-6 space-y-4">{selectedModule.branches.map((branch, index, branches) => {
+     const completed = completedBranches.includes(branch.id);
+     const locked = index > 0 && !completedBranches.includes(branches[index - 1].id);
+     return <li key={branch.id} aria-label={branch.title} aria-disabled={locked} className={`rounded-xl border p-5 sm:p-6 ${locked ? 'opacity-50 pointer-events-none border-slate-200 bg-slate-100' : completed ? 'border-emerald-200 bg-emerald-50/40' : 'border-blue-200 bg-white shadow-sm'}`}>
+       <div className="flex items-start gap-4"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${locked ? 'bg-slate-200 text-slate-500' : completed ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{locked ? <Lock aria-label="Lección bloqueada" size={19}/> : completed ? <CheckCircle2 aria-label="Lección completada" size={20}/> : <BookOpen size={20}/>}</span><div><p className="text-xs font-medium text-slate-500">LECCIÓN {index + 1} · {locked ? 'Bloqueada' : completed ? 'Completada' : 'Disponible'}</p><h5 className="mt-2 text-base font-semibold">{branch.title}</h5><p className="mt-2 text-sm leading-6 text-slate-600">{branch.description}</p></div></div>
+       <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">{locked ? `Completa «${branches[index - 1].title}» para continuar.` : completed ? 'Has completado esta etapa de tu ruta.' : 'Marca esta lección al terminar para seguir avanzando.'}</p><button disabled={locked || completed} onClick={() => completeBranch(branch.id)} className="inline-flex items-center gap-2 rounded-lg bg-blue-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? <Lock size={16}/> : completed ? <CheckCircle2 size={16}/> : <ArrowRight size={16}/>} {completed ? 'Lección completada' : 'Completar lección'}</button></div>
+     </li>;
+   })}</ol>}
+   {completedBranches.length === basicBranches.length && <p role="status" className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">¡Ruta Básica completada! Evalúa tus conocimientos para acreditar el siguiente nivel.</p>}
+ </div> : <ul className="mt-5 space-y-4">{selectedModule.lessons.map(lesson=><li key={lesson} className="flex gap-3 text-sm leading-6 text-slate-600"><CheckCircle2 size={18} className="mt-1 shrink-0 text-blue-600"/>{lesson}</li>)}</ul>}<Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
  </section>
   </main>
  );
