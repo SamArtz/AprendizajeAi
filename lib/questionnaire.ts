@@ -1,6 +1,7 @@
 export interface Option { id: number; texto: string; puntos: number }
 export interface DatabaseQuestion {
   pregunta_id: number;
+  rama_id?: string | null;
   texto: string;
   dificultad: string;
   modulo: string;

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const branch = new URL(request.url).searchParams.get('rama');
   try {
     const { rows } = await getPool().query(`
-      SELECT p.id AS pregunta_id, p.texto, p.dificultad, COALESCE(p.modulo, r.modulo) AS modulo,
+      SELECT p.id AS pregunta_id, p.rama_id::text AS rama_id, p.texto, p.dificultad, COALESCE(p.modulo, r.modulo) AS modulo,
         COALESCE(
           jsonb_agg(jsonb_build_object(
             'id', o.id, 'texto', o.texto, 'puntos', o.puntos
@@ -23,12 +23,15 @@ export async function GET(request: Request) {
       FROM preguntas p
       LEFT JOIN ramas r ON r.id = p.rama_id
       LEFT JOIN opciones o ON o.pregunta_id = p.id
-      WHERE ($1::text IS NULL OR translate(lower(trim(COALESCE(p.modulo, r.modulo))), 'áéíóú', 'aeiou') = $1
-        OR translate(lower(trim(COALESCE(p.modulo, r.modulo))), 'áéíóú', 'aeiou') = 'modulo ' || $1)
-      ${branch ? 'AND p.rama_id::text = $2' : ''}
-      GROUP BY p.id, p.texto, p.dificultad, p.modulo, r.modulo
+      WHERE ($1::text IS NULL OR translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou') = $1
+        OR translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou') = 'modulo ' || $1)
+      AND ($2::text IS NULL OR p.rama_id::text = $2)
+      GROUP BY p.id, p.rama_id, p.texto, p.dificultad, p.modulo, r.modulo
       ORDER BY p.id
-    `, branch ? [normalizedModule ?? null, branch] : [normalizedModule ?? null]);
+    `, [normalizedModule ?? null, branch]);
+    if (branch && rows.length !== 15) {
+      return NextResponse.json({ error: `La rama ${branch} tiene ${rows.length} preguntas en PostgreSQL; debe contener exactamente 15.` }, { status: 422 });
+    }
     if (!isQuestionnaire(rows)) {
       return NextResponse.json({ error: 'Hay preguntas incompletas o puntos inválidos en la base de datos.' }, { status: 422 });
     }

@@ -44,7 +44,7 @@ Este esquema documenta las tablas existentes; la aplicación no las crea ni migr
 - GET `/api/preguntas?modulo=Módulo Básico&rama=1`: consulta filtrada por módulo y ID numérico de rama.
 - Consultas sin caché; errores de conexión devuelven 503 sin mostrar credenciales.
 
-El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario muestra las 15 preguntas incluidas en la misma respuesta de la API. Guardar lección completada registra el progreso y desbloquea la siguiente. No se exige nota mínima. Salir antes de completar el cuestionario no registra progreso.
+El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario consulta de nuevo `/api/preguntas` con el ID de la rama y muestra sus 15 preguntas completas. Guardar lección completada registra el progreso y desbloquea la siguiente. No se exige nota mínima. Salir antes de completar el cuestionario no registra progreso.
 
 La evaluación inicial normaliza el puntaje sobre 300 y asigna Básico (0–100), Intermedio (101–200) o Avanzado (201–300). Las prácticas de rama muestran su puntuación sin cambiar ese nivel. `userLevel` y `completedBranches` se guardan en localStorage; los IDs completados se validan como un prefijo consecutivo independiente por módulo. Empezar desde cero elimina únicamente esas claves tras confirmar.
 
@@ -58,3 +58,5 @@ npm run typecheck
 npm start
 ```
 Para actualizar localmente: Ctrl+C, `git pull origin main`, `npm ci`, `npm run dev`. Conserva tu `.env` local.
+
+Las prácticas no usan preguntas precargadas ni muestras estáticas: cada apertura consulta PostgreSQL con el ID real de la rama. La API y el cliente verifican las 15 preguntas; una rama con solo 3 devuelve un error explícito. `Fundamentos Generativos` se selecciona por el ID de su registro de `ramas`, sin asumir que ese ID sea 1.
