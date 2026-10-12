@@ -7,12 +7,13 @@ import { evaluateScore, type Level } from '../lib/evaluation';
 import type { Branch } from '../lib/learning';
 import { isQuestionnaire, type DatabaseQuestion } from '../lib/questionnaire';
 
-export default function Questionnaire({ module, branch, onComplete, onCancel }: { module?: Level; branch?: Branch; onComplete?: () => void; onCancel?: () => void }) {
-  const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function Questionnaire({ module, branch, initialQuestions, onComplete, onCancel }: { module?: Level; branch?: Branch; initialQuestions?: DatabaseQuestion[]; onComplete?: () => void; onCancel?: () => void }) {
+  const [questions, setQuestions] = useState<DatabaseQuestion[]>(initialQuestions ?? []);
+  const [loading, setLoading] = useState(!initialQuestions);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
+    if (initialQuestions) { setQuestions(initialQuestions); setLoading(false); return; }
     const controller = new AbortController();
     async function load() {
       setLoading(true);
@@ -30,7 +31,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
     }
     void load();
       return () => controller.abort();
-  }, [retry, module, branch]);
+  }, [retry, module, branch, initialQuestions]);
   const maxScore = questions.reduce((sum, item) => sum + Math.max(...item.opciones.map(option => option.puntos)), 0);
   // Mantiene los cortes históricos sobre 300 aunque cambie el tamaño del banco.
   const getLevel = (points: number) => evaluateScore(Math.round(points / maxScore * 300));

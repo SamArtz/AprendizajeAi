@@ -1,10 +1,10 @@
 'use client';
 import Link from 'next/link';
-import Questionnaire from '../../components/questionnaire';
+import BranchLesson from '../../components/branch-lesson';
 import RestartProgress from '../../components/restart-progress';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Level } from '../../lib/evaluation';
-import { modules, parseCompletedBranches } from '../../lib/learning';
+import { groupModules, isBranchList, parseCompletedBranches, type Branch } from '../../lib/learning';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { ShieldCheck, Clock3, ChartNoAxesCombined, ArrowRight, BookOpen, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 interface LevelMetrics {
@@ -22,6 +22,25 @@ const metricsByLevel: Record<Level, LevelMetrics> = {
 const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 const levels: Level[] = ['Básico', 'Intermedio', 'Avanzado'];
 export default function Dashboard(){
+ const [branches, setBranches] = useState<Branch[]>([]);
+ const [catalogError, setCatalogError] = useState<string | null>(null);
+ const [catalogLoading, setCatalogLoading] = useState(true);
+ const [catalogRetry, setCatalogRetry] = useState(0);
+ const modules = useMemo(() => groupModules(branches), [branches]);
+ useEffect(() => {
+   const controller = new AbortController();
+   async function load() {
+     setCatalogLoading(true); setCatalogError(null);
+     try {
+       const response = await fetch('/api/ramas', { signal: controller.signal, cache: 'no-store' });
+       const data: unknown = await response.json();
+       if (!response.ok || !isBranchList(data)) throw new Error('No se pudieron cargar las ramas. Verifica la BD y que cada rama tenga teoría y 15 preguntas con opciones.');
+       if (!controller.signal.aborted) setBranches(data);
+     } catch (error) { if (!controller.signal.aborted) setCatalogError(error instanceof Error ? error.message : 'Error al cargar las ramas.'); }
+     finally { if (!controller.signal.aborted) setCatalogLoading(false); }
+   }
+   void load(); return () => controller.abort();
+ }, [catalogRetry]);
  const [userLevel, setUserLevel] = useState<Level | null>(null);
  const [loaded, setLoaded] = useState(false);
  const [storageError, setStorageError] = useState(false);
@@ -51,7 +70,7 @@ export default function Dashboard(){
  useEffect(() => {
    function readBranches() {
      try {
-       setCompletedBranches(parseCompletedBranches(localStorage.getItem('completedBranches')));
+       setCompletedBranches(parseCompletedBranches(localStorage.getItem('completedBranches'), modules));
        setBranchStorageError(false);
      } catch { setCompletedBranches([]); setBranchStorageError(true); }
      setBranchesLoaded(true);
@@ -62,7 +81,7 @@ export default function Dashboard(){
    }
    window.addEventListener('storage', onStorage);
    return () => window.removeEventListener('storage', onStorage);
- }, []);
+ }, [modules]);
 
  function completeBranch(id: string) {
    const module = modules.find(item => item.branches.some(branch => branch.id === id));
@@ -131,12 +150,15 @@ export default function Dashboard(){
  <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold tracking-widest text-blue-700">TU RUTA DE APRENDIZAJE</p><h2 id="modules-title" className="mt-2 text-2xl font-semibold">Módulos de estudio</h2></div><Link href="/evaluacion" className="text-sm font-semibold text-blue-700">{userLevel ? 'Actualizar mi nivel' : 'Evaluar mi nivel'}</Link></div>
  <p className="mt-3 text-sm leading-6 text-slate-500">Avanza desde los fundamentos: domina el módulo anterior y vuelve a evaluar tus conocimientos para desbloquear el siguiente nivel.</p>
  {loaded && !userLevel && <p className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">{storageError ? 'No podemos leer tu nivel. Habilita el almacenamiento del navegador y completa la evaluación.' : 'Completa la evaluación inicial para conocer tu nivel y habilitar tus módulos.'}</p>}
+ {catalogLoading && <p role="status" className="mt-6 text-sm text-slate-500">Cargando ramas desde PostgreSQL…</p>}
+ {catalogError && <div role="alert" className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">{catalogError}<button onClick={() => setCatalogRetry(value => value + 1)} className="ml-3 font-semibold underline">Reintentar</button></div>}
+ {!catalogLoading && !catalogError && !branches.length && <p className="mt-6 text-slate-500">No hay ramas registradas en la base de datos.</p>}
  <div className="mt-6 grid gap-5 md:grid-cols-3">{modules.map((module, index) => {
-   const locked = index > levelIndex;
+   const locked = levels.indexOf(module.level) > levelIndex;
    return <article key={module.level} aria-label={`Módulo ${module.level}`} className={`flex flex-col rounded-xl border border-slate-200 bg-white p-6 ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}>
      <div className="flex items-center justify-between"><span className="rounded-lg bg-blue-50 p-3 text-blue-700">{locked ? <Lock aria-label="Bloqueado" size={22}/> : <BookOpen size={22}/>}</span><span className="text-xs font-medium text-slate-500">{locked ? 'Bloqueado' : 'Disponible'}</span></div>
      <h3 className="mt-5 text-xl font-semibold">{module.level}</h3><p className="mt-2 text-sm font-medium">{module.title}</p><p className="mt-3 text-sm leading-6 text-slate-500">{module.description}</p><p className="mt-3 text-xs font-medium text-blue-700">{module.branches.length} lecciones secuenciales</p>
-     <p className="mb-5 mt-5 text-xs leading-5 text-slate-500">{locked ? (!userLevel ? 'Requiere evaluación inicial.' : `Supera el módulo ${levels[index - 1]} y acredita el nivel ${module.level} en la evaluación.`) : 'Acceso habilitado por tu nivel de evaluación.'}</p>
+     <p className="mb-5 mt-5 text-xs leading-5 text-slate-500">{locked ? (!userLevel ? 'Requiere evaluación inicial.' : `Supera el módulo ${levels[levels.indexOf(module.level) - 1]} y acredita el nivel ${module.level} en la evaluación.`) : 'Acceso habilitado por tu nivel de evaluación.'}</p>
      <button disabled={locked} onClick={() => { setActiveModule(module.level); setActiveBranchId(null); }} className="mt-auto flex items-center justify-between gap-2 rounded-lg bg-blue-950 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? 'Módulo bloqueado' : 'Abrir módulo'}{locked ? <Lock size={16}/> : <ArrowRight size={16}/>}</button>
    </article>;
  })}</div>
@@ -153,7 +175,7 @@ export default function Dashboard(){
      </li>;
    })}</ol>}
    {completedModuleBranches === selectedModule.branches.length && <p role="status" className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">¡Ruta {selectedModule.level} completada! Evalúa tus conocimientos para seguir avanzando.</p>}
- </div>{selectedBranch && <div id="lesson-questionnaire" className="mt-8 border-t border-slate-200"><Questionnaire key={selectedBranch.id} module={selectedModule.level} branch={selectedBranch} onCancel={() => setActiveBranchId(null)} onComplete={() => { completeBranch(selectedBranch.id); setActiveBranchId(null); }}/></div>}<Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
+ </div>{selectedBranch && <div id="lesson-questionnaire" className="mt-8 border-t border-slate-200"><BranchLesson key={selectedBranch.id} module={selectedModule.level} branch={selectedBranch} onCancel={() => setActiveBranchId(null)} onComplete={() => { completeBranch(selectedBranch.id); setActiveBranchId(null); }}/></div>}<Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link></section>}
  </section>
   </main>
  );

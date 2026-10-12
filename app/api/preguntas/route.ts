@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { modules } from '../../../lib/learning';
 import { getPool } from '../../../lib/db';
 import { isQuestionnaire } from '../../../lib/questionnaire';
 
@@ -13,27 +12,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Módulo inválido.' }, { status: 400 });
   }
   const branch = new URL(request.url).searchParams.get('rama');
-  if (branch) {
-    const owner = modules.find(item => item.branches.some(item => item.id === branch));
-    const level = owner?.level.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    if (!owner || !normalizedModule || ![level, `modulo ${level}`].includes(normalizedModule)) {
-      return NextResponse.json({ error: 'La rama no pertenece al módulo solicitado.' }, { status: 400 });
-    }
-  }
   try {
     const { rows } = await getPool().query(`
-      SELECT p.id AS pregunta_id, p.texto, p.dificultad, p.modulo,
+      SELECT p.id AS pregunta_id, p.texto, p.dificultad, COALESCE(p.modulo, r.modulo) AS modulo,
         COALESCE(
           jsonb_agg(jsonb_build_object(
             'id', o.id, 'texto', o.texto, 'puntos', o.puntos
           ) ORDER BY o.id) FILTER (WHERE o.id IS NOT NULL), '[]'::jsonb
         ) AS opciones
       FROM preguntas p
+      LEFT JOIN ramas r ON r.id = p.rama_id
       LEFT JOIN opciones o ON o.pregunta_id = p.id
-      WHERE ($1::text IS NULL OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = $1
-        OR translate(lower(trim(p.modulo)), 'áéíóú', 'aeiou') = 'modulo ' || $1)
-      ${branch ? 'AND p.rama_id = $2' : ''}
-      GROUP BY p.id, p.texto, p.dificultad, p.modulo
+      WHERE ($1::text IS NULL OR translate(lower(trim(COALESCE(p.modulo, r.modulo))), 'áéíóú', 'aeiou') = $1
+        OR translate(lower(trim(COALESCE(p.modulo, r.modulo))), 'áéíóú', 'aeiou') = 'modulo ' || $1)
+      ${branch ? 'AND p.rama_id::text = $2' : ''}
+      GROUP BY p.id, p.texto, p.dificultad, p.modulo, r.modulo
       ORDER BY p.id
     `, branch ? [normalizedModule ?? null, branch] : [normalizedModule ?? null]);
     if (!isQuestionnaire(rows)) {

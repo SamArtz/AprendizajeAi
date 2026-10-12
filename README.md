@@ -1,45 +1,60 @@
 # Adaptia
-Prototipo SaaS B2B de adopción adaptativa de IA con Next.js App Router, TypeScript, Tailwind CSS, lucide-react y Recharts.
+Prototipo SaaS B2B con Next.js App Router, TypeScript, Tailwind CSS, lucide-react, Recharts y PostgreSQL.
 
-## Desarrollo
+## Instalación y arranque local
 ```sh
-npm ci --cache /tmp/adaptia-npm-cache
+npm ci
+```
+Copia `.env.example` a `.env` y completa tu usuario y contraseña de PostgreSQL. Los valores locales son `PGHOST=localhost`, `PGPORT=5432` y `PGDATABASE=adaptia`. Next.js carga `.env` automáticamente. No subas el archivo ni expongas credenciales mediante variables `NEXT_PUBLIC_`. Si usas `DATABASE_URL`, tiene prioridad sobre las variables PG.
+
+```sh
 npm run dev
 ```
+Next.js debe ejecutarse en la misma computadora que PostgreSQL para usar localhost. DBeaver es el cliente para administrar la base; no sustituye al servidor PostgreSQL. Reinicia Next.js después de modificar `.env`.
 
-## Validación y producción
+## Esquema actual
+```sql
+CREATE TABLE ramas (
+  id SERIAL PRIMARY KEY,
+  modulo VARCHAR(50) NOT NULL,
+  nombre VARCHAR(150) NOT NULL,
+  contenido_teorico TEXT NOT NULL
+);
+CREATE TABLE preguntas (
+  id SERIAL PRIMARY KEY,
+  texto TEXT NOT NULL,
+  dificultad VARCHAR(20) NOT NULL,
+  modulo VARCHAR(50),
+  rama_id INTEGER REFERENCES ramas(id)
+);
+CREATE TABLE opciones (
+  id SERIAL PRIMARY KEY,
+  pregunta_id INTEGER REFERENCES preguntas(id) ON DELETE CASCADE,
+  texto TEXT NOT NULL,
+  puntos INTEGER NOT NULL
+);
+```
+Este esquema documenta las tablas existentes; la aplicación no las crea ni migra. No ejecutes el seed histórico `sql/preguntas-ramas-extra.sql` sobre este esquema: ese seed utilizaba IDs textuales de rama.
+
+## API y contenido dinámico
+- GET `/api/ramas`: JOIN jerárquico de ramas, preguntas y opciones. Devuelve `id` como string para localStorage, `title` desde `nombre`, `description` vacía (el esquema no contiene descripción), `modulo`, `contenido_teorico`, `orden` desde el ID y `preguntas` con `opciones`.
+- Cada rama requiere teoría, un módulo Básico/Intermedio/Avanzado y exactamente 15 preguntas válidas con al menos dos opciones y puntos enteros no negativos. La API devuelve 422 para contenido incompleto; no inventa ni recorta preguntas.
+- Si `preguntas.modulo` es NULL, se utiliza `ramas.modulo`.
+- GET `/api/preguntas?modulo=Evaluacion Inicial`: evaluación inicial con preguntas de la base de datos. Las preguntas iniciales pueden tener `rama_id` NULL.
+- GET `/api/preguntas?modulo=Módulo Básico&rama=1`: consulta filtrada por módulo y ID numérico de rama.
+- Consultas sin caché; errores de conexión devuelven 503 sin mostrar credenciales.
+
+El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario muestra las 15 preguntas incluidas en la misma respuesta de la API. Guardar lección completada registra el progreso y desbloquea la siguiente. No se exige nota mínima. Salir antes de completar el cuestionario no registra progreso.
+
+La evaluación inicial normaliza el puntaje sobre 300 y asigna Básico (0–100), Intermedio (101–200) o Avanzado (201–300). Las prácticas de rama muestran su puntuación sin cambiar ese nivel. `userLevel` y `completedBranches` se guardan en localStorage; los IDs completados se validan como un prefijo consecutivo independiente por módulo. Empezar desde cero elimina únicamente esas claves tras confirmar.
+
+Las métricas ejecutivas siguen siendo simulaciones etiquetadas según el nivel. El SSO es de demostración. La API devuelve puntos al navegador; una evaluación certificada requiere autenticación y calificación en el servidor.
+
+## Verificación
+Abre `/api/ramas` para comprobar el JSON, `/dashboard` para las rutas y `/evaluacion` para el diagnóstico.
 ```sh
 npm run build
 npm run typecheck
 npm start
 ```
-
-Rutas: `/`, `/dashboard`, `/evaluacion`.
-
-El dashboard contiene datos ilustrativos; el badge SSO no representa autenticación real. Solicitar Demo abre una introducción a la demo. La evaluación carga las preguntas desde PostgreSQL y calcula el puntaje según sus opciones y permite repetirla; sus respuestas se pierden al salir o recargar. El nivel final se conserva en localStorage bajo `userLevel` y habilita los módulos correspondientes en el Dashboard. Sin un nivel válido, se requiere completar la evaluación. Los módulos incluyen guías introductorias; su lectura no modifica el nivel. No requiere credenciales, backend ni base de datos.
-
-Las rutas contienen 45 lecciones secuenciales: 10 Básicas, 15 Intermedias y 20 Avanzadas. Los datos y tipos están en `lib/learning.ts`. Cada módulo mantiene su propia secuencia; su primera lección está disponible al acceder al módulo. `completedBranches` guarda sus IDs como JSON en localStorage; completar una lección habilita la siguiente. El progreso no cambia el nivel de evaluación ni las métricas simuladas.
-
-## PostgreSQL y preguntas dinámicas
-Dependencias: `npm install pg` y `npm install -D @types/pg` (ya declaradas).
-Copia `.env.example` a `.env` y completa `PGDATABASE`, `PGUSER` y `PGPASSWORD` con tus datos reales. Next.js carga el archivo automáticamente; reinicia el servidor tras cambiarlo. No uses variables `NEXT_PUBLIC_` para credenciales ni subas `.env`.
-
-La API GET `/api/preguntas` une `preguntas(id, texto, dificultad, modulo)` con `opciones(id, pregunta_id, texto, puntos)`, ordena por IDs y agrupa las opciones en `opciones`. Consulta todas las preguntas. Cada pregunta necesita dos o más opciones, con puntos enteros no negativos y al menos una opción con puntos positivos. `modulo` y `dificultad` deben ser textos no nulos. No se crean ni modifican tablas automáticamente.
-
-El cuestionario suma los puntos de la opción seleccionada. El máximo es la suma de la mejor opción de cada pregunta. Para preservar los niveles existentes, se normaliza el total sobre 300 antes de aplicar los cortes 100/200; si el banco suma 300, los cortes originales son idénticos. El nivel sigue guardándose en `userLevel`.
-
-`localhost:5432` es el PostgreSQL de la máquina donde corre Next.js. Una aplicación en la nube no puede acceder al localhost de tu computadora: usa un host accesible o ejecuta Next.js junto a tu PostgreSQL. Para conexiones remotas utiliza las opciones TLS verificadas de tu proveedor, por ejemplo `PGSSLMODE=verify-full`.
-
-La API devuelve puntos al navegador para este prototipo. Una evaluación certificada requeriría calificación en el servidor y autenticación.
-
-## Reiniciar y practicar módulos
-En el Dashboard, **Empezar desde cero** elimina únicamente `userLevel` y `completedBranches` del navegador, tras confirmar, y abre la evaluación inicial con preguntas actuales de PostgreSQL. Reiniciar el servidor o descargar GitHub no borra localStorage.
-
-Cada módulo disponible muestra una práctica con preguntas de `/api/preguntas?modulo=Básico` (también Intermedio y Avanzado). La columna `modulo` debe contener `Básico`, `Intermedio`, `Avanzado` o `Módulo Básico`, etc.; se ignoran mayúsculas, acentos y espacios exteriores. No se usa `dificultad` para asignar módulos. La práctica no cambia el nivel inicial ni completa ramas automáticamente; las 45 ramas siguen siendo el catálogo de aprendizaje.
-
-Para actualizar y reiniciar tu aplicación local: detén con Ctrl+C, ejecuta `git pull origin main`, `npm ci` y `npm run dev`. Conserva tu `.env` local. GitHub almacena código, no ejecuta el servidor.
-
-El cuestionario inicial solicita únicamente `modulo=Evaluacion Inicial`; las prácticas solicitan `Módulo Básico`, `Módulo Intermedio` y `Módulo Avanzado`, de acuerdo con los valores de tu base de datos. La API sin filtro sigue disponible para consultar todas las preguntas.
-
-## Cuestionarios por lección
-`Abrir módulo` solo despliega sus ramas. `Completar lección` abre el cuestionario exclusivo de esa rama (`/api/preguntas?modulo=Módulo Básico&rama=basico-1`, por ejemplo). Ejecuta primero `sql/preguntas-ramas-extra.sql` para añadir `rama_id` y las 135 preguntas. La API verifica que el ID de rama pertenece al módulo y filtra por ambos campos; no mezcla preguntas de otras lecciones. Al responder todas las preguntas, `Guardar lección completada` registra el progreso y desbloquea la siguiente. No se exige nota mínima; completar significa responder el cuestionario. Salir antes no completa la rama. La evaluación inicial sigue funcionando sin `rama_id`.
+Para actualizar localmente: Ctrl+C, `git pull origin main`, `npm ci`, `npm run dev`. Conserva tu `.env` local.
