@@ -62,3 +62,8 @@ Para actualizar localmente: Ctrl+C, `git pull origin main`, `npm ci`, `npm run d
 Las prácticas no usan preguntas precargadas ni muestras estáticas: cada apertura consulta PostgreSQL con el ID real de la rama. La API y el cliente verifican las 15 preguntas; una rama con solo 3 devuelve un error explícito. `Fundamentos Generativos` se selecciona por el ID de su registro de `ramas`, sin asumir que ese ID sea 1.
 
 Compatibilidad: los JOIN comparan IDs como texto para admitir el esquema existente con `preguntas.rama_id TEXT`. Una pregunta con rama_id="1" se asocia a ramas.id=1; los valores antiguos como `basico-1` no se reasignan automáticamente. Solo aparecen ramas realmente registradas. Los filtros de módulo aceptan Básico y Módulo Básico (y equivalentes).
+
+## Recuperación del catálogo existente (IDs 1–45 confirmados)
+El script `sql/recuperar-45-ramas.sql` está preparado para el inventario con `ramas.id` INTEGER y `preguntas.rama_id` TEXT: rama 1 con 15 preguntas, las otras 44 vacías y grupos antiguos `basico-*`, `intermedio-*`, `avanzado-*`.
+Ejecuta el archivo completo en DBeaver conectado a `adaptia` (Alt+X). Valida IDs, nombres y módulos antes de modificar; conserva la rama 1, reutiliza solo grupos temáticamente compatibles y completa cada destino hasta 15. Reemplaza únicamente teoría vacía o `Contenido en desarrollo...`. No elimina preguntas ni opciones; muestra los grupos antiguos que permanecen sin asociar. La operación es transaccional y reejecutable sin duplicados. El script no cambia tipos de columnas.
+Después verifica 45 filas con 15 preguntas en la consulta final y vuelve a intentar `/api/ramas`. Si hay un error de validación, revisa el mensaje y no alteres el inventario para forzar la ejecución.
