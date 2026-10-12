@@ -60,3 +60,5 @@ npm start
 Para actualizar localmente: Ctrl+C, `git pull origin main`, `npm ci`, `npm run dev`. Conserva tu `.env` local.
 
 Las prácticas no usan preguntas precargadas ni muestras estáticas: cada apertura consulta PostgreSQL con el ID real de la rama. La API y el cliente verifican las 15 preguntas; una rama con solo 3 devuelve un error explícito. `Fundamentos Generativos` se selecciona por el ID de su registro de `ramas`, sin asumir que ese ID sea 1.
+
+Compatibilidad: los JOIN comparan IDs como texto para admitir el esquema existente con `preguntas.rama_id TEXT`. Una pregunta con rama_id="1" se asocia a ramas.id=1; los valores antiguos como `basico-1` no se reasignan automáticamente. Solo aparecen ramas realmente registradas. Los filtros de módulo aceptan Básico y Módulo Básico (y equivalentes).

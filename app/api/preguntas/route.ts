@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const module = new URL(request.url).searchParams.get('modulo');
-  const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/^modulo\s+/, '');
   if (normalizedModule && !['evaluacion inicial', 'basico', 'intermedio', 'avanzado', 'modulo basico', 'modulo intermedio', 'modulo avanzado'].includes(normalizedModule)) {
     return NextResponse.json({ error: 'Módulo inválido.' }, { status: 400 });
   }
@@ -21,10 +21,11 @@ export async function GET(request: Request) {
           ) ORDER BY o.id) FILTER (WHERE o.id IS NOT NULL), '[]'::jsonb
         ) AS opciones
       FROM preguntas p
-      LEFT JOIN ramas r ON r.id = p.rama_id
+      LEFT JOIN ramas r ON r.id::text = p.rama_id::text
       LEFT JOIN opciones o ON o.pregunta_id = p.id
       WHERE ($1::text IS NULL OR translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou') = $1
-        OR translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou') = 'modulo ' || $1)
+        OR translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou') = 'modulo ' || $1
+        OR regexp_replace(translate(lower(trim(CASE WHEN $2::text IS NOT NULL THEN r.modulo ELSE COALESCE(p.modulo, r.modulo) END)), 'áéíóú', 'aeiou'), '^modulo[[:space:]]+', '') = $1)
       AND ($2::text IS NULL OR p.rama_id::text = $2)
       GROUP BY p.id, p.rama_id, p.texto, p.dificultad, p.modulo, r.modulo
       ORDER BY p.id

@@ -13,7 +13,7 @@ export const RAMAS_QUERY = `
              'id', o.id, 'texto', o.texto, 'puntos', o.puntos
            ) ORDER BY o.id) FILTER (WHERE o.id IS NOT NULL), '[]'::jsonb) AS opciones
     FROM preguntas p
-    JOIN ramas r ON r.id = p.rama_id
+    JOIN ramas r ON r.id::text = p.rama_id::text
     LEFT JOIN opciones o ON o.pregunta_id = p.id
     GROUP BY p.rama_id, p.id, p.texto, p.dificultad, p.modulo, r.modulo
   )
@@ -23,7 +23,7 @@ export const RAMAS_QUERY = `
            'pregunta_id', p.pregunta_id, 'texto', p.texto, 'dificultad', p.dificultad,
            'modulo', p.modulo, 'opciones', p.opciones
          ) ORDER BY p.pregunta_id) FILTER (WHERE p.pregunta_id IS NOT NULL), '[]'::jsonb) AS preguntas
-  FROM ramas r LEFT JOIN preguntas_con_opciones p ON p.rama_id = r.id
+  FROM ramas r LEFT JOIN preguntas_con_opciones p ON p.rama_id::text = r.id::text
   GROUP BY r.id, r.nombre, r.contenido_teorico, r.modulo
   ORDER BY r.id
 `;
