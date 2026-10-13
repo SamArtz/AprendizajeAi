@@ -11,7 +11,7 @@ const outcomes = [
   {
     icon: Workflow,
     title: 'Automatización práctica',
-    text: 'Aplica IA a correos, minutas, resúmenes y análisis de datos. Crea plantillas reutilizables y revisa los resultados con criterios de calidad.',
+    text: 'Aplica IA a correos, actas de reuniones, resúmenes y análisis de datos. Crea plantillas reutilizables y revisa los resultados con criterios de calidad.',
     label: 'APLICACIÓN',
   },
   {
