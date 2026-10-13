@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShieldCheck, BrainCircuit, CheckCircle2, RotateCcw } from 'lucide-react';
+import QuizReview from './quiz-review';
+import { hasPassed, PASS_PERCENT, type QuizResult } from '../lib/passing-score';
 import { shuffleOptions } from '../lib/shuffle-options';
 import { evaluateScore, type Level } from '../lib/evaluation';
 import type { Branch } from '../lib/learning';
 import { isQuestionnaire, type DatabaseQuestion } from '../lib/questionnaire';
 
-export default function Questionnaire({ module, branch, onComplete, onCancel }: { module?: Level; branch?: Branch; onComplete?: () => void; onCancel?: () => void }) {
+export default function Questionnaire({ module, branch, onComplete, onCancel }: { module?: Level; branch?: Branch; onComplete?: (result: QuizResult) => void; onCancel?: () => void }) {
   const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
   const [currentStep, setCurrentStep] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [showReview, setShowReview] = useState(false);
   const [storageError, setStorageError] = useState(false);
   const [answers, setAnswers] = useState<number[]>([]);
   const isFinished = questions.length > 0 && currentStep === questions.length;
@@ -50,6 +53,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
     if (selected === null || isFinished || !question) return;
     const finalScore = score + question.opciones[selected].puntos;
     if (currentStep === questions.length - 1) {
+      setShowReview(true);
       try {
         if (!module) localStorage.setItem('userLevel', getLevel(finalScore));
         setStorageError(false);
@@ -70,6 +74,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
     setScore(0);
     setAnswers([]);
     setStorageError(false);
+    setShowReview(false);
   }
 
     if (loading || loadError) return (
@@ -115,11 +120,13 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
             <p className="mt-2 text-sm text-slate-500">{answers.filter((answer, index) => questions[index].opciones[answer].puntos === Math.max(...questions[index].opciones.map(option => option.puntos))).length} de {questions.length} respuestas correctas</p>
             <p className="mt-4 text-xs leading-6 text-slate-400">{module ? 'Esta práctica no modifica tu nivel inicial ni desbloquea módulos automáticamente.' : 'Resultado orientativo; no constituye una certificación profesional.'}</p>
           </div>
+          {branch && <p role="status" className={`mt-5 rounded-lg p-4 text-center text-sm font-medium ${hasPassed({score,maxScore}) ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>{hasPassed({score,maxScore}) ? 'Lección aprobada. Puedes guardarla y desbloquear la siguiente rama.' : `Necesitas al menos ${PASS_PERCENT}% para avanzar. Revisa tus errores y vuelve a intentarlo.`}</p>}
           {storageError && <p role="alert" className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo guardar tu nivel. Habilita el almacenamiento del navegador y repite la evaluación para conectarlo con el Dashboard.</p>}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {onComplete ? <button onClick={onComplete} className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white">Guardar lección completada<CheckCircle2 size={16}/></button> : <Link href="/dashboard" className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-900">Continuar al Dashboard<ArrowRight size={16}/></Link>}
+            {onComplete ? <button disabled={!hasPassed({score, maxScore})} onClick={() => { if (hasPassed({score, maxScore})) onComplete({score, maxScore}); }} className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500">Guardar lección completada<CheckCircle2 size={16}/></button> : <Link href="/dashboard" className="flex items-center gap-2 rounded-lg bg-blue-950 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-900">Continuar al Dashboard<ArrowRight size={16}/></Link>}
             <button onClick={reset} className="flex items-center gap-2 rounded-lg border border-slate-200 px-5 py-3 text-sm hover:bg-slate-50"><RotateCcw size={16}/>Repetir evaluación</button>
           </div>
+          <button onClick={() => setShowReview(true)} className="mt-6 text-sm font-semibold text-blue-700 underline">Ver errores y respuestas correctas</button>
           <details className="mt-9 border-t border-slate-100 pt-6">
             <summary className="text-sm font-semibold text-slate-600">Revisar respuestas y recomendaciones</summary>
             <div className="mt-5 space-y-4">{questions.map((item, index) => (
@@ -132,6 +139,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
           </details>
         </div>}
       </section>
+      {isFinished && showReview && <QuizReview questions={questions} answers={answers} onClose={() => setShowReview(false)}/>}
       <p className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck size={14}/>{module ? 'Tus respuestas de práctica no se envían ni se guardan.' : 'Solo tu nivel se guarda en este navegador. Tus respuestas no se envían ni se guardan.'}</p>
     </section>
   );

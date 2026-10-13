@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { hasPassed, type QuizResult } from '../../lib/passing-score';
 import BranchLesson from '../../components/branch-lesson';
 import RestartProgress from '../../components/restart-progress';
 import { useEffect, useMemo, useState } from 'react';
@@ -83,7 +84,8 @@ export default function Dashboard(){
    return () => window.removeEventListener('storage', onStorage);
  }, [modules]);
 
- function completeBranch(id: string) {
+ function completeBranch(id: string, result: QuizResult) {
+   if (!hasPassed(result)) return;
    const module = modules.find(item => item.branches.some(branch => branch.id === id));
    if (!module || userLevel === null || levels.indexOf(module.level) > levels.indexOf(userLevel)) return;
    const index = module.branches.findIndex(branch => branch.id === id);
@@ -175,7 +177,7 @@ export default function Dashboard(){
      </li>;
    })}</ol>}
    {completedModuleBranches === selectedModule.branches.length && <p role="status" className="mt-5 rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800">¡Ruta {selectedModule.level} completada! Evalúa tus conocimientos para seguir avanzando.</p>}
- </div>}{selectedBranch && <div id="lesson-questionnaire" className="mt-4"><BranchLesson key={selectedBranch.id} module={selectedModule.level} branch={selectedBranch} onCancel={() => setActiveBranchId(null)} onComplete={() => { completeBranch(selectedBranch.id); setActiveBranchId(null); }}/></div>}{!selectedBranch && <Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link>}</section>}
+ </div>}{selectedBranch && <div id="lesson-questionnaire" className="mt-4"><BranchLesson key={selectedBranch.id} module={selectedModule.level} branch={selectedBranch} onCancel={() => setActiveBranchId(null)} onComplete={result => { if (!hasPassed(result)) return; completeBranch(selectedBranch.id, result); setActiveBranchId(null); }}/></div>}{!selectedBranch && <Link href="/evaluacion" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Evaluar mis conocimientos<ArrowRight size={16}/></Link>}</section>}
  </section>
   </main>
  );

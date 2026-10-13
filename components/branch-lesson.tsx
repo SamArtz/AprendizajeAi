@@ -7,12 +7,13 @@ import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2 } from 'lucide-react';
 import type { Branch } from '../lib/learning';
 import type { Level } from '../lib/evaluation';
 import { theorySlides } from '../lib/theory-slides';
+import { hasPassed, type QuizResult } from '../lib/passing-score';
 import Questionnaire from './questionnaire';
 
 export default function BranchLesson({ branch, module, onComplete, onCancel }: {
   branch: Branch;
   module: Level;
-  onComplete: () => void;
+  onComplete: (result: QuizResult) => void;
   onCancel: () => void;
 }) {
   const [quiz, setQuiz] = useState(false);
@@ -21,7 +22,7 @@ export default function BranchLesson({ branch, module, onComplete, onCancel }: {
   const slide = Math.min(currentSlide, Math.max(slides.length - 1, 0));
   const lastSlide = slides.length > 0 && slide === slides.length - 1;
 
-  if (quiz) return <Questionnaire module={module} branch={branch} onComplete={onComplete} onCancel={() => setQuiz(false)}/>;
+  if (quiz) return <Questionnaire module={module} branch={branch} onComplete={result => { if (hasPassed(result)) onComplete(result); }} onCancel={() => setQuiz(false)}/>;
 
   return (
     <section aria-labelledby="lesson-theory-title" className="mt-8 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">

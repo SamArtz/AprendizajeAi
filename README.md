@@ -44,7 +44,7 @@ Este esquema documenta las tablas existentes; la aplicación no las crea ni migr
 - GET `/api/preguntas?modulo=Módulo Básico&rama=1`: consulta filtrada por módulo y ID numérico de rama.
 - Consultas sin caché; errores de conexión devuelven 503 sin mostrar credenciales.
 
-El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario consulta de nuevo `/api/preguntas` con el ID de la rama y muestra sus 15 preguntas completas. Guardar lección completada registra el progreso y desbloquea la siguiente. No se exige nota mínima. Salir antes de completar el cuestionario no registra progreso.
+El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario consulta de nuevo `/api/preguntas` con el ID de la rama y muestra sus 15 preguntas completas. Guardar lección completada registra el progreso y desbloquea la siguiente. Se exige al menos 80% del puntaje máximo para completar una rama. Salir antes de completar el cuestionario no registra progreso.
 
 La evaluación inicial normaliza el puntaje sobre 300 y asigna Básico (0–100), Intermedio (101–200) o Avanzado (201–300). Las prácticas de rama muestran su puntuación sin cambiar ese nivel. `userLevel` y `completedBranches` se guardan en localStorage; los IDs completados se validan como un prefijo consecutivo independiente por módulo. Empezar desde cero elimina únicamente esas claves tras confirmar.
 
@@ -70,3 +70,5 @@ Después verifica 45 filas con 15 preguntas en la consulta final y vuelve a inte
 
 ## Guía en diapositivas
 La teoría de PostgreSQL se presenta una diapositiva por párrafo, con Anterior, Siguiente y avance de lectura. Los encabezados acompañan al siguiente bloque; listas, tablas y código se conservan completos. No requiere cambiar el SQL ni crear tablas. Solo la última diapositiva muestra Comenzar lección, que carga las 15 preguntas de la rama. Volver desde el cuestionario conserva la diapositiva donde quedó la lectura durante esa sesión.
+
+Al finalizar el test se abre una revisión de errores: respuesta elegida en rojo y correctas de máxima puntuación en verde, con etiquetas e iconos. El 80% se compara con el puntaje real, sin redondear el porcentaje mostrado. Un intento insuficiente no guarda ni desbloquea la rama; se puede repetir con opciones mezcladas. La evaluación inicial conserva su clasificación de nivel. El progreso guardado antes de esta regla no se borra automáticamente.
