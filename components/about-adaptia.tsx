@@ -18,7 +18,7 @@ const principles = [
 
 export default function AboutAdaptia() {
   return (
-    <section id="nosotros" aria-labelledby="about-title" className="scroll-mt-44 sm:scroll-mt-28 border-y border-slate-200 bg-white">
+    <section id="nosotros" aria-labelledby="about-title" className="scroll-mt-44 sm:scroll-mt-28 border-y border-blue-100 bg-gradient-to-br from-blue-50 to-white">
       <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid items-start gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-20">
           <div>
@@ -33,9 +33,9 @@ export default function AboutAdaptia() {
           </div>
           <div className="space-y-5">
             {principles.map(({ title, icon: Icon, number, text }) => (
-              <article key={title} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-6 sm:p-8">
+              <article key={title} className="rounded-2xl border border-blue-100 bg-white p-6 sm:p-8">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="inline-flex rounded-xl border border-blue-100 bg-white p-3 text-blue-700"><Icon size={23} aria-hidden="true"/></span>
+                  <span className="inline-flex rounded-xl border border-blue-600 bg-blue-600 p-3 text-white"><Icon size={23} aria-hidden="true"/></span>
                   <span className="text-xs font-medium tracking-widest text-slate-400">{number}</span>
                 </div>
                 <h3 className="mt-5 text-xl font-semibold text-slate-900">{title}</h3>
