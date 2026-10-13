@@ -18,7 +18,7 @@ const principles = [
 
 export default function AboutAdaptia() {
   return (
-    <section id="nosotros" aria-labelledby="about-title" className="scroll-mt-8 border-y border-slate-200 bg-white">
+    <section id="nosotros" aria-labelledby="about-title" className="scroll-mt-44 sm:scroll-mt-28 border-y border-slate-200 bg-white">
       <div className="mx-auto max-w-7xl px-6 py-16 sm:py-24">
         <div className="grid items-start gap-12 lg:grid-cols-[1fr_1.25fr] lg:gap-20">
           <div>
