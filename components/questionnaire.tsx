@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShieldCheck, BrainCircuit, CheckCircle2, RotateCcw } from 'lucide-react';
+import { shuffleOptions } from '../lib/shuffle-options';
 import { evaluateScore, type Level } from '../lib/evaluation';
 import type { Branch } from '../lib/learning';
 import { isQuestionnaire, type DatabaseQuestion } from '../lib/questionnaire';
@@ -25,7 +26,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
         if (!data.length) throw new Error('No hay preguntas disponibles para esta lección. Comprueba que ejecutaste el seed y que su rama_id coincide.');
         if (branch && data.length !== 15) throw new Error(`La lección «${branch.title}» tiene ${data.length} preguntas en la base de datos; requiere 15.`);
         if (branch && data.some(question => question.rama_id !== branch.id)) throw new Error('La respuesta contiene preguntas de otra rama.');
-        if (!controller.signal.aborted) setQuestions(data);
+        if (!controller.signal.aborted) setQuestions(shuffleOptions(data));
       } catch (error) {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : 'Error al cargar el cuestionario.');
       } finally { if (!controller.signal.aborted) setLoading(false); }
@@ -63,6 +64,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
   }
 
   function reset() {
+    setQuestions(previous => shuffleOptions(previous));
     setCurrentStep(0);
     setSelected(null);
     setScore(0);
@@ -93,7 +95,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
           <fieldset>
             <legend className="mb-6 text-xl font-semibold leading-8">{question.texto}</legend>
             <div className="space-y-3">{question.opciones.map((option, index) => (
-              <label key={`${currentStep}-${index}`} className={`flex cursor-pointer items-center gap-4 rounded-xl border p-5 text-sm leading-6 ${selected === index ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+              <label key={`${question.pregunta_id}-${option.id}`} className={`flex cursor-pointer items-center gap-4 rounded-xl border p-5 text-sm leading-6 ${selected === index ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <input type="radio" name={`question-${currentStep}`} value={index} checked={selected === index} onChange={() => setSelected(index)} className="h-4 w-4 shrink-0 accent-blue-600"/>{option.texto}
               </label>
             ))}</div>
