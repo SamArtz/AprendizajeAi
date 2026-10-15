@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPool } from './db';
 import { tokenHash } from './auth';
-export function checkOrigin(request: Request) {
-  const expected = new URL(process.env.APP_URL || request.url).origin;
-  return request.headers.get('origin') === expected;
-}
+export { checkOrigin } from './request-origin';
 export async function readCredentials(request: Request) {
   if (!request.headers.get('content-type')?.includes('application/json')) return null;
   // Un límite acotado antes de procesar JSON o calcular el hash.
