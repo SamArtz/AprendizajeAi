@@ -46,9 +46,9 @@ Este esquema documenta las tablas existentes; la aplicación no las crea ni migr
 
 El Dashboard carga el catálogo desde `/api/ramas`. Abrir módulo despliega sus ramas; Completar lección abre primero el Markdown de `contenido_teorico`, sin ejecutar HTML incrustado. Continuar al cuestionario consulta de nuevo `/api/preguntas` con el ID de la rama y muestra sus 15 preguntas completas. Guardar lección completada registra el progreso y desbloquea la siguiente. Se exige al menos 80% del puntaje máximo para completar una rama. Salir antes de completar el cuestionario no registra progreso.
 
-La evaluación inicial normaliza el puntaje sobre 300 y asigna Básico (0–100), Intermedio (101–200) o Avanzado (201–300). Las prácticas de rama muestran su puntuación sin cambiar ese nivel. `userLevel` y `completedBranches` se guardan en localStorage; los IDs completados se validan como un prefijo consecutivo independiente por módulo. Empezar desde cero elimina únicamente esas claves tras confirmar.
+La evaluación inicial normaliza el puntaje sobre 300 y asigna Básico (0–100), Intermedio (101–200) o Avanzado (201–300). Las prácticas de rama muestran su puntuación sin cambiar ese nivel. `userLevel` y `completedBranches` se guardan en localStorage con claves separadas por ID de usuario; los IDs completados se validan como un prefijo consecutivo independiente por módulo. Empezar desde cero elimina únicamente esas claves tras confirmar.
 
-Las métricas ejecutivas siguen siendo simulaciones etiquetadas según el nivel. El SSO es de demostración. La API devuelve puntos al navegador; una evaluación certificada requiere autenticación y calificación en el servidor.
+Las métricas ejecutivas siguen siendo simulaciones etiquetadas según el nivel. El acceso requiere cuenta y sesión; no hay integración SSO corporativa. La API de contenido exige sesión y devuelve puntos al navegador; una evaluación certificada también requiere calificación y progreso en el servidor.
 
 ## Verificación
 Abre `/api/ramas` para comprobar el JSON, `/dashboard` para las rutas y `/evaluacion` para el diagnóstico.
@@ -72,3 +72,25 @@ Después verifica 45 filas con 15 preguntas en la consulta final y vuelve a inte
 La teoría de PostgreSQL se presenta una diapositiva por párrafo, con Anterior, Siguiente y avance de lectura. Los encabezados acompañan al siguiente bloque; listas, tablas y código se conservan completos. No requiere cambiar el SQL ni crear tablas. Solo la última diapositiva muestra Comenzar lección, que carga las 15 preguntas de la rama. Volver desde el cuestionario conserva la diapositiva donde quedó la lectura durante esa sesión.
 
 Al finalizar el test se abre una revisión de errores: respuesta elegida en rojo y correctas de máxima puntuación en verde, con etiquetas e iconos. El 80% se compara con el puntaje real, sin redondear el porcentaje mostrado. Un intento insuficiente no guarda ni desbloquea la rama; se puede repetir con opciones mezcladas. La evaluación inicial conserva su clasificación de nivel. El progreso guardado antes de esta regla no se borra automáticamente.
+
+## Registro y login
+Después de `npm ci`, completa tu `.env` de PostgreSQL y ejecuta una vez:
+```sh
+npm run db:auth
+npm run dev
+```
+`db:auth` ejecuta `sql/usuarios.sql` en la base existente `adaptia`. Es reejecutable y no modifica ramas, preguntas ni opciones. Alternativa: abre ese SQL en DBeaver y ejecútalo completo (Alt+X). No crea una base nueva ni usuarios de prueba.
+
+- `/register`: nombre, correo y contraseña de 12–128 caracteres; crea cuenta e inicia sesión.
+- `/login`: inicio con correo y contraseña.
+- `POST /api/register`: JSON `{ "nombre": "Tu nombre", "email": "tu@correo.com", "password": "tu contraseña de al menos 12 caracteres" }`.
+- `POST /api/login`: JSON con email/password. Devuelve usuario público y cookie; nunca el hash ni el token en JSON.
+- `POST /api/logout`: revoca la sesión en PostgreSQL y elimina la cookie.
+- `GET /api/me`: usuario de sesión o 401.
+- `/dashboard`, `/evaluacion`, `/api/ramas` y `/api/preguntas` requieren sesión.
+
+Las contraseñas usan scrypt con sal aleatoria. Las sesiones son tokens opacos aleatorios: solo se almacena su SHA-256 en PostgreSQL. Cookie HttpOnly, SameSite=Lax, Secure en producción; vencimiento de 7 días y revocación al salir. HTTPS es obligatorio en producción. Las peticiones POST comprueban Origin; para un dominio detrás de un proxy define APP_URL con la URL pública exacta. No se requiere AUTH_SECRET. Los intentos de login/registro se limitan a 10 por correo y operación cada 15 minutos mediante PostgreSQL.
+
+El progreso continúa en el navegador, separado por cuenta (`adaptia:user:ID:userLevel` y `adaptia:user:ID:completedBranches`); los datos globales anteriores no se adjudican automáticamente a una persona. No hay sincronización de aprendizaje entre dispositivos, recuperación de contraseña ni verificación de correo todavía. Las sesiones sí se verifican en el servidor.
+
+Validación: `npm run test:auth`, `npm run build`. Las tablas de sesiones y límites pueden limpiarse periódicamente eliminando solo filas vencidas. Para producción, añade la política de recuperación/verificación de correo y protección de tráfico adecuada al despliegue.

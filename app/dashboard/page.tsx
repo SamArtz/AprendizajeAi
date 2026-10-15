@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import { useAuth } from '../../components/auth-provider';
+import { progressKey } from '../../lib/auth-types';
 import { hasPassed, type QuizResult } from '../../lib/passing-score';
 import BranchLesson from '../../components/branch-lesson';
 import RestartProgress from '../../components/restart-progress';
@@ -23,6 +25,9 @@ const metricsByLevel: Record<Level, LevelMetrics> = {
 const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
 const levels: Level[] = ['Básico', 'Intermedio', 'Avanzado'];
 export default function Dashboard(){
+ const {user}=useAuth();
+ const levelKey=progressKey(user?.id ?? 0,'userLevel');
+ const branchesKey=progressKey(user?.id ?? 0,'completedBranches');
  const [branches, setBranches] = useState<Branch[]>([]);
  const [catalogError, setCatalogError] = useState<string | null>(null);
  const [catalogLoading, setCatalogLoading] = useState(true);
@@ -53,7 +58,7 @@ export default function Dashboard(){
  useEffect(() => {
    function readLevel() {
      try {
-       const saved = localStorage.getItem('userLevel');
+       const saved = localStorage.getItem(levelKey);
        setUserLevel(levels.includes(saved as Level) ? saved as Level : null);
        setStorageError(false);
      } catch { setUserLevel(null); setStorageError(true); }
@@ -63,26 +68,26 @@ export default function Dashboard(){
    }
    readLevel();
    function onStorage(event: StorageEvent) {
-     if (event.key === 'userLevel' || event.key === null) readLevel();
+     if (event.key === levelKey || event.key === null) readLevel();
    }
    window.addEventListener('storage', onStorage);
    return () => window.removeEventListener('storage', onStorage);
- }, []);
+ }, [levelKey]);
  useEffect(() => {
    function readBranches() {
      try {
-       setCompletedBranches(parseCompletedBranches(localStorage.getItem('completedBranches'), modules));
+       setCompletedBranches(parseCompletedBranches(localStorage.getItem(branchesKey), modules));
        setBranchStorageError(false);
      } catch { setCompletedBranches([]); setBranchStorageError(true); }
      setBranchesLoaded(true);
    }
    readBranches();
    function onStorage(event: StorageEvent) {
-     if (event.key === 'completedBranches' || event.key === null) readBranches();
+     if (event.key === branchesKey || event.key === null) readBranches();
    }
    window.addEventListener('storage', onStorage);
    return () => window.removeEventListener('storage', onStorage);
- }, [modules]);
+ }, [modules, branchesKey]);
 
  function completeBranch(id: string, result: QuizResult) {
    if (!hasPassed(result)) return;
@@ -93,7 +98,7 @@ export default function Dashboard(){
    if (index > 0 && !completedBranches.includes(module.branches[index - 1].id)) return;
    const updated = [...completedBranches, id];
    try {
-     localStorage.setItem('completedBranches', JSON.stringify(updated));
+     localStorage.setItem(branchesKey, JSON.stringify(updated));
      setBranchStorageError(false);
    } catch { setBranchStorageError(true); }
    setCompletedBranches(updated);
@@ -110,10 +115,10 @@ export default function Dashboard(){
    <section aria-labelledby="analytics-title" className="space-y-8">
     <div className="flex flex-wrap items-center justify-between gap-4">
      <p className="text-xs font-semibold tracking-widest text-slate-500">PANEL ANALÍTICO EJECUTIVO</p>
-     <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs text-emerald-700"><ShieldCheck size={14}/>Conexión Segura SSO · Demo</span>
+     <span className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-xs text-emerald-700"><ShieldCheck size={14}/>Sesión autenticada</span>
     </div>
     <div className="flex flex-wrap items-center justify-between gap-6">
-     <div><h1 id="analytics-title" className="text-4xl font-semibold tracking-tight">Hola, Alex<span className="text-blue-600">.</span></h1><p className="mt-3 max-w-xl leading-7 text-slate-500">{metrics?.description ?? 'Completa tu evaluación para descubrir tu punto de partida.'}</p></div>
+     <div><h1 id="analytics-title" className="text-4xl font-semibold tracking-tight">Hola, {user?.nombre ?? 'estudiante'}<span className="text-blue-600">.</span></h1><p className="mt-3 max-w-xl leading-7 text-slate-500">{metrics?.description ?? 'Completa tu evaluación para descubrir tu punto de partida.'}</p></div>
      <div className="min-w-56 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-xs text-slate-500">Tu nivel de conocimiento</p>
       <div className="mt-3 flex items-center gap-4"><Sparkles size={18} className="text-blue-600"/><strong className="text-base" aria-live="polite">{!loaded ? 'Cargando nivel…' : userLevel ?? 'Sin evaluar'}</strong><span aria-label={userLevel ? `Nivel ${levelIndex + 1} de 3` : 'Nivel pendiente de evaluación'} className="flex gap-1">{levels.map((level, index) => <span key={level} className={`h-2 w-4 rounded-full ${index <= levelIndex ? 'bg-blue-600' : 'bg-slate-200'}`}/>)}</span></div>
@@ -145,7 +150,7 @@ export default function Dashboard(){
       <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10}/><YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={value => `${value}%`} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }}/><Tooltip formatter={value => [`${value}%`, 'Eficiencia simulada']} contentStyle={{ borderRadius: 12, borderColor: '#e2e8f0' }}/><Line type="monotone" dataKey="score" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }}/></LineChart></ResponsiveContainer>
      </div> : <div className="mt-8 flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl bg-slate-50 px-6 text-center"><ChartNoAxesCombined size={32} className="text-slate-400"/><p className="text-sm text-slate-500">{loaded ? 'Completa la evaluación para visualizar tu curva de eficiencia.' : 'Cargando tus indicadores…'}</p>{loaded && <Link href="/evaluacion" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-700">Iniciar evaluación<ArrowRight size={16}/></Link>}</div>}
     </section>
-    <p className="text-xs leading-6 text-slate-400">Las métricas y la curva son simulaciones basadas en tu nivel de conocimiento; no representan mediciones de actividad real. SSO de demostración.</p>
+    <p className="text-xs leading-6 text-slate-400">Las métricas y la curva son simulaciones basadas en tu nivel de conocimiento; no representan mediciones de actividad real.</p>
    </section>
 <RestartProgress />
 <section aria-labelledby="modules-title" className="border-t border-slate-200 pt-10 sm:pt-14">

@@ -1,3 +1,4 @@
+import { getCurrentUser } from '../../../lib/auth';
 import { NextResponse } from 'next/server';
 import { getPool } from '../../../lib/db';
 import { isBranchList } from '../../../lib/learning';
@@ -29,6 +30,7 @@ export const RAMAS_QUERY = `
 `;
 export async function GET() {
   try {
+    if (!await getCurrentUser()) return NextResponse.json({error:"Inicia sesión para acceder."},{status:401});
     const { rows } = await getPool().query(RAMAS_QUERY);
     if (!isBranchList(rows)) {
       return NextResponse.json({ error: 'Cada rama debe tener título, módulo, contenido teórico y exactamente 15 preguntas válidas con opciones.' }, { status: 422 });

@@ -1,3 +1,4 @@
+import { getCurrentUser } from '../../../lib/auth';
 import { NextResponse } from 'next/server';
 import { getPool } from '../../../lib/db';
 import { isQuestionnaire } from '../../../lib/questionnaire';
@@ -6,6 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  try { if (!await getCurrentUser()) return NextResponse.json({error:"Inicia sesión para acceder."},{status:401}); } catch { return NextResponse.json({error:"No se pudo verificar la sesión."},{status:503}); }
   const module = new URL(request.url).searchParams.get('modulo');
   const normalizedModule = module?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/^modulo\s+/, '');
   if (normalizedModule && !['evaluacion inicial', 'basico', 'intermedio', 'avanzado', 'modulo basico', 'modulo intermedio', 'modulo avanzado'].includes(normalizedModule)) {

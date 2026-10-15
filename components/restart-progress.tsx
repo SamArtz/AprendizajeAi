@@ -1,13 +1,17 @@
 'use client';
+import { useAuth } from './auth-provider';
+import { progressKey } from '../lib/auth-types';
 import { useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 export default function RestartProgress() {
+  const {user}=useAuth();
   const [error, setError] = useState(false);
   function restart() {
+    if (!user) return;
     if (!window.confirm('Se borrarán tu nivel y las lecciones completadas de este navegador. ¿Empezar desde cero?')) return;
     try {
-      localStorage.removeItem('userLevel');
-      localStorage.removeItem('completedBranches');
+      localStorage.removeItem(progressKey(user.id,'userLevel'));
+      localStorage.removeItem(progressKey(user.id,'completedBranches'));
       window.location.assign('/evaluacion');
     } catch { setError(true); }
   }

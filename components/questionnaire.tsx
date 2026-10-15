@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from './auth-provider';
+import { progressKey } from '../lib/auth-types';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, ShieldCheck, BrainCircuit, CheckCircle2, RotateCcw } from 'lucide-react';
@@ -11,6 +13,7 @@ import type { Branch } from '../lib/learning';
 import { isQuestionnaire, type DatabaseQuestion } from '../lib/questionnaire';
 
 export default function Questionnaire({ module, branch, onComplete, onCancel }: { module?: Level; branch?: Branch; onComplete?: (result: QuizResult) => void; onCancel?: () => void }) {
+  const {user}=useAuth();
   const [questions, setQuestions] = useState<DatabaseQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -55,7 +58,7 @@ export default function Questionnaire({ module, branch, onComplete, onCancel }: 
     if (currentStep === questions.length - 1) {
       setShowReview(true);
       try {
-        if (!module) localStorage.setItem('userLevel', getLevel(finalScore));
+        if (!module && user) localStorage.setItem(progressKey(user.id,'userLevel'), getLevel(finalScore));
         setStorageError(false);
       } catch {
         setStorageError(true);
