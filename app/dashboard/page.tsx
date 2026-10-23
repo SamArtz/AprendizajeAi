@@ -7,7 +7,7 @@ import BranchLesson from '../../components/branch-lesson';
 import RestartProgress from '../../components/restart-progress';
 import { useEffect, useMemo, useState } from 'react';
 import type { Level } from '../../lib/evaluation';
-import { groupModules, isBranchList, parseCompletedBranches, type Branch } from '../../lib/learning';
+import { groupModules, isBranchList, parseCompletedBranches, canStartBranch, type Branch } from '../../lib/learning';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { ShieldCheck, Clock3, ChartNoAxesCombined, ArrowRight, BookOpen, Sparkles, Lock, CheckCircle2 } from 'lucide-react';
 interface LevelMetrics {
@@ -95,7 +95,7 @@ export default function Dashboard(){
    if (!module || userLevel === null || levels.indexOf(module.level) > levels.indexOf(userLevel)) return;
    const index = module.branches.findIndex(branch => branch.id === id);
    if (!branchesLoaded || userLevel === null || index < 0 || completedBranches.includes(id)) return;
-   if (index > 0 && !completedBranches.includes(module.branches[index - 1].id)) return;
+   if (!canStartBranch(module.branches, index, completedBranches)) return;
    const updated = [...completedBranches, id];
    try {
      localStorage.setItem(branchesKey, JSON.stringify(updated));
@@ -175,7 +175,7 @@ export default function Dashboard(){
    {branchStorageError && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-800">No se pudo acceder al almacenamiento del navegador. Tu progreso queda solo en esta sesión hasta que puedas guardarlo.</p>}
    {!branchesLoaded ? <p className="mt-5 text-sm text-slate-500">Cargando tu recorrido…</p> : <ol className="mt-6 space-y-4">{selectedModule.branches.map((branch, index, branches) => {
      const completed = completedBranches.includes(branch.id);
-     const locked = index > 0 && !completedBranches.includes(branches[index - 1].id);
+     const locked = !canStartBranch(branches, index, completedBranches);
      return <li key={branch.id} aria-label={branch.title} aria-disabled={locked} className={`rounded-xl border p-5 sm:p-6 ${locked ? 'opacity-50 pointer-events-none border-slate-200 bg-slate-100' : completed ? 'border-emerald-200 bg-emerald-50/40' : 'border-blue-200 bg-white shadow-sm'}`}>
        <div className="flex items-start gap-4"><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${locked ? 'bg-slate-200 text-slate-500' : completed ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{locked ? <Lock aria-label="Lección bloqueada" size={19}/> : completed ? <CheckCircle2 aria-label="Lección completada" size={20}/> : <BookOpen size={20}/>}</span><div><p className="text-xs font-medium text-slate-500">LECCIÓN {index + 1} · {locked ? 'Bloqueada' : completed ? 'Completada' : 'Disponible'}</p><h5 className="mt-2 text-base font-semibold">{branch.title}</h5><p className="mt-2 text-sm leading-6 text-slate-600">{branch.description}</p></div></div>
        <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-500">{locked ? `Completa «${branches[index - 1].title}» para continuar.` : completed ? 'Has completado esta etapa de tu ruta.' : 'Responde las preguntas de esta lección para seguir avanzando.'}</p><button disabled={locked || completed} onClick={() => { setActiveBranchId(branch.id); setTimeout(() => document.getElementById('active-module-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} className="inline-flex items-center gap-2 rounded-lg bg-blue-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-600">{locked ? <Lock size={16}/> : completed ? <CheckCircle2 size={16}/> : <ArrowRight size={16}/>} {completed ? 'Lección completada' : 'Completar lección'}</button></div>

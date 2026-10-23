@@ -96,3 +96,6 @@ El progreso continúa en el navegador, separado por cuenta (`adaptia:user:ID:use
 Validación: `npm run test:auth`, `npm run build`. Las tablas de sesiones y límites pueden limpiarse periódicamente eliminando solo filas vencidas. Para producción, añade la política de recuperación/verificación de correo y protección de tráfico adecuada al despliegue.
 
 Si registro/login devuelve 403 Origen no permitido: APP_URL, si está definida, debe coincidir exactamente con el origen del navegador (protocolo, dominio o IP y puerto, sin /register). En local puede omitirse y se comprobará Host, incluso si Next.js usa 0.0.0.0 internamente. Reinicia el servidor al cambiar .env. Nunca uses comodines ni desactives checkOrigin. No se aceptan X-Forwarded-Host arbitrarios; configura APP_URL para proxies que reescriben Host.
+
+## Orden introductorio del nivel Básico
+La ruta comienza con Anatomía y Estructura del Prompt, Privacidad y Reglas de Seguridad Básicas, Buscadores Tradicionales vs. IA Generativa y, en cuarto lugar, Fundamentos de Modelos Generativos (LLMs). Las demás lecciones mantienen su orden. La presentación se organiza en `lib/learning.ts`, sin cambiar IDs, teoría ni asociaciones de preguntas en PostgreSQL; no requiere SQL. Las aprobaciones de la secuencia anterior se conservan y el acceso exige completar todos los prerrequisitos de la secuencia actual.
