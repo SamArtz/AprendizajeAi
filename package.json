@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "db:auth": "node scripts/setup-auth.mjs",
     "test:auth": "node --test tests/auth.test.cjs",
-    "db:juridica": "node scripts/importar-biblioteca.mjs"
+    "db:juridica": "node scripts/importar-biblioteca.mjs",
+    "juridica:buscar": "node scripts/buscar-juridico.mjs"
   },
   "dependencies": {
     "@next/env": "^16.4.1",

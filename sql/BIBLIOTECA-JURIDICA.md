@@ -55,3 +55,23 @@ la conectividad ni los permisos de tu instancia PostgreSQL: la primera carga
 local los comprueba. Pendientes: cotejo visual de tablas, verificación de reformas,
 URL oficial de procedencia y evaluación jurídica. Esta etapa no requiere clave
 API, embeddings ni `pgvector`.
+
+## Búsqueda documental de prueba
+
+```powershell
+npm run juridica:buscar -- "vacaciones"
+npm run juridica:buscar -- "aguinaldo"
+npm run juridica:buscar -- "despido"
+npm run juridica:buscar -- "artículo 198"
+```
+
+Este comando es solo una herramienta interna por terminal, sin API pública ni IA.
+Consulta únicamente la última versión importada del Código de Trabajo, aunque
+esté pendiente, y muestra su estado de revisión. No cambia la habilitación para
+consultas. Devuelve hasta cinco fragmentos por relevancia textual, con artículo
+y páginas del PDF; una referencia exacta devuelve todas las partes de ese artículo.
+Prueba primero palabras clave: aún no hay búsqueda semántica, sinónimos ni
+interpretación jurídica de preguntas. Coincidencias parciales pueden ser irrelevantes;
+la ausencia de resultados no demuestra ausencia de una norma. Las notas legales
+están conservadas en la versión, pero aún no forman parte de esta búsqueda: no
+usar los resultados como respuesta jurídica vigente.
