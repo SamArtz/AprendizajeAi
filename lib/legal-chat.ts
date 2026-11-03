@@ -24,9 +24,36 @@ export async function readLegalQuestion(request: Request): Promise<string | null
   } catch { return null; }
 }
 
+export type LegalProviderCode = 'auth' | 'quota' | 'rate-limit' | 'access' | 'model' | 'request' | 'network' | 'timeout' | 'incomplete' | 'refusal' | 'format' | 'citations' | 'unconfigured' | 'unavailable';
+export class LegalProviderError extends Error {
+  constructor(public code: LegalProviderCode, public status?: number) { super(`legal-provider-${code}`); }
+}
+export function legalProviderNotice(error: unknown): { code: LegalProviderCode; message: string } {
+  const code = error instanceof LegalProviderError ? error.code : 'unavailable';
+  const messages: Record<LegalProviderCode, string> = {
+    auth: 'OpenAI rechazó la clave API. Revisa OPENAI_API_KEY en .env y reinicia el servidor.',
+    quota: 'OpenAI informó que la cuota o el saldo de API están agotados. Revisa la facturación y los límites del proyecto de OpenAI.',
+    'rate-limit': 'OpenAI limitó temporalmente las solicitudes. Espera un momento antes de reintentar.',
+    access: 'El proyecto de OpenAI no tiene permiso para esta operación. Revisa los permisos de la clave y del proyecto.',
+    model: 'El modelo configurado no existe o no está disponible para este proyecto. Revisa OPENAI_MODEL.',
+    request: 'OpenAI rechazó la configuración de la solicitud. Código de diagnóstico: OPENAI_REQUEST.',
+    network: 'No se pudo conectar con OpenAI. Revisa la conexión de Internet del servidor.',
+    timeout: 'OpenAI no respondió dentro del tiempo disponible. Puedes volver a intentarlo.',
+    incomplete: 'OpenAI devolvió una respuesta incompleta. No se presenta como respuesta validada.',
+    refusal: 'OpenAI no generó una respuesta para esta consulta. Puedes revisar las fuentes recuperadas.',
+    format: 'OpenAI devolvió un formato de respuesta que no se pudo validar.',
+    citations: 'La respuesta de OpenAI no incluyó citas válidas de los documentos recuperados.',
+    unconfigured: 'Falta configurar OPENAI_API_KEY en el servidor.',
+    unavailable: 'OpenAI no está disponible en este momento. Puedes revisar las fuentes y reintentar después.',
+  };
+  return { code, message: messages[code] };
+}
+
 export async function generateLegalAnswer(question: string, sources: LegalSource[], notes: unknown, fetcher: typeof fetch = fetch) {
-  if (!process.env.OPENAI_API_KEY) throw new Error('provider-unconfigured');
-  const response = await fetcher('https://api.openai.com/v1/responses', {
+  if (!process.env.OPENAI_API_KEY) throw new LegalProviderError('unconfigured');
+  let response: Response;
+  try {
+  response = await fetcher('https://api.openai.com/v1/responses', {
     method: 'POST', signal: AbortSignal.timeout(45000),
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -47,11 +74,29 @@ Devuelve una explicación breve y los IDs de las fuentes que realmente la respal
       } } },
     }),
   });
-  if (!response.ok) throw new Error('provider-unavailable');
-  const data = await response.json();
-  if (data.status !== 'completed') throw new Error('provider-incomplete');
+  } catch (error) {
+    throw new LegalProviderError(error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name) ? 'timeout' : 'network');
+  }
+  if (!response.ok) {
+    // Solo inspecciona códigos conocidos; nunca devuelve ni registra el cuerpo del proveedor.
+    const body = await response.json().catch(() => ({}));
+    const code = body?.error?.code;
+    const type = body?.error?.type;
+    const kind: LegalProviderCode = response.status === 401 ? 'auth'
+      : code === 'insufficient_quota' || code === 'billing_hard_limit_reached' || type === 'insufficient_quota' ? 'quota'
+      : response.status === 429 ? 'rate-limit'
+      : response.status === 403 ? 'access'
+      : response.status === 404 || code === 'model_not_found' ? 'model'
+      : response.status === 400 ? 'request' : 'unavailable';
+    throw new LegalProviderError(kind, response.status);
+  }
+  let data;
+  try { data = await response.json(); } catch { throw new LegalProviderError('format'); }
+  if (data.status !== 'completed') throw new LegalProviderError('incomplete');
+  if (data.output?.some((item: { content?: { type: string }[] }) => item.content?.some(c => c.type === 'refusal'))) throw new LegalProviderError('refusal');
   const text = data.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? []).filter((c: { type: string }) => c.type === 'output_text').map((c: { text: string }) => c.text).join('');
-  const answer = JSON.parse(text || '{}');
-  if (typeof answer.answer !== 'string' || !answer.answer.trim() || answer.answer.length > 12000 || typeof answer.insufficient !== 'boolean' || !Array.isArray(answer.citations) || answer.citations.some((id: unknown) => typeof id !== 'string' || !sources.some(s => s.id === id)) || (!answer.insufficient && !answer.citations.length)) throw new Error('provider-invalid-citations');
+  let answer;
+  try { answer = JSON.parse(text || '{}'); } catch { throw new LegalProviderError('format'); }
+  if (typeof answer.answer !== 'string' || !answer.answer.trim() || answer.answer.length > 12000 || typeof answer.insufficient !== 'boolean' || !Array.isArray(answer.citations) || answer.citations.some((id: unknown) => typeof id !== 'string' || !sources.some(s => s.id === id)) || (!answer.insufficient && !answer.citations.length)) throw new LegalProviderError('citations');
   return { answer: answer.answer, sources: sources.filter(s => answer.citations.includes(s.id)), insufficient: answer.insufficient as boolean };
 }

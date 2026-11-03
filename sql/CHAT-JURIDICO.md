@@ -68,3 +68,19 @@ al login, errores 401/403, consulta autenticada con fuentes, proveedor sin clave
 consulta sin resultados, rechazo de entrada excesiva, página autenticada y
 límite de frecuencia. Las respuestas de OpenAI se probaron con un proveedor
 simulado; no se ha verificado una llamada real ni la calidad jurídica del modelo.
+
+## Diagnóstico del proveedor
+
+Si la generación falla, el chat conserva las fuentes y muestra un código:
+`OPENAI_AUTH` (clave rechazada), `OPENAI_QUOTA` (saldo/cuota),
+`OPENAI_RATE_LIMIT` (límite temporal), `OPENAI_ACCESS` (permisos),
+`OPENAI_MODEL` (modelo no disponible), `OPENAI_REQUEST` (configuración),
+`OPENAI_NETWORK`/`OPENAI_TIMEOUT` (conectividad), o un error de formato/citas.
+La terminal registra solo esa categoría y el estado HTTP; nunca imprime la clave,
+el texto completo del error del proveedor ni las preguntas para diagnosticarlo.
+
+La búsqueda reconoce referencias dentro de preguntas completas, por ejemplo
+«¿Qué establece el artículo 198 sobre el aguinaldo?». También elimina verbos
+interrogativos comunes para que «¿Cómo se calcula el aguinaldo?» recupere el tema
+sin priorizar coincidencias accidentales con «calcula». Sigue siendo búsqueda
+textual y no garantiza recuperar todas las disposiciones aplicables.

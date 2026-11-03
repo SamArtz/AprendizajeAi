@@ -48,3 +48,21 @@ test('fabricated citations, unsupported complete answers, truncated responses an
   await assert.rejects(generateLegalAnswer('consulta',[source],[],async()=>new Response('',{status:429})));
  } finally {if(previous===undefined) delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
 });
+test('provider failures return actionable diagnostics without echoing credentials or raw messages',async()=>{
+ const {legalProviderNotice}=require(path.join(directory,'legal-chat.js'));
+ const previous=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='unit-test-secret-placeholder';
+ try {
+  for(const [status,code,expected] of [[401,'invalid_api_key','auth'],[429,'insufficient_quota','quota'],[429,'rate_limit_exceeded','rate-limit'],[403,'permission_denied','access'],[404,'model_not_found','model'],[400,'invalid_json_schema','request'],[503,'server_error','unavailable']]) {
+   let caught;
+   try {await generateLegalAnswer('consulta',[source],[],async()=>new Response(JSON.stringify({error:{code,message:'unit-test-secret-placeholder private error text'}}),{status}));}catch(e){caught=e;}
+   const diagnostic=legalProviderNotice(caught);
+   assert.equal(diagnostic.code,expected);
+   assert(!JSON.stringify(diagnostic).includes('unit-test-secret-placeholder'));
+   assert(!JSON.stringify(diagnostic).includes('private error text'));
+  }
+  for(const [error,expected] of [[new TypeError('network info'),'network'],[new DOMException('timeout info','TimeoutError'),'timeout']]){
+   let caught;try{await generateLegalAnswer('consulta',[source],[],async()=>{throw error;});}catch(e){caught=e;}
+   assert.equal(legalProviderNotice(caught).code,expected);
+  }
+ } finally {if(previous===undefined) delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previous;}
+});

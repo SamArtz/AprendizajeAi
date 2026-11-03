@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '../../../lib/auth';
 import { getPool } from '../../../lib/db';
 import { checkOrigin, isRateLimited } from '../../../lib/auth-request';
-import { canUseLegalChat, canGenerateLegalAnswer, readLegalQuestion, generateLegalAnswer, type LegalSource } from '../../../lib/legal-chat';
+import { canUseLegalChat, canGenerateLegalAnswer, readLegalQuestion, generateLegalAnswer, legalProviderNotice, LegalProviderError, type LegalSource } from '../../../lib/legal-chat';
 import { searchLibrary } from '../../../scripts/busqueda-juridica.mjs';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -29,8 +29,10 @@ export async function POST(request: Request) {
     try {
       const generated = await generateLegalAnswer(question, sources, notes.rows[0]?.notas ?? []);
       return json({ answer: generated.answer, sources: generated.sources, generated: true, version, notice: generated.insufficient ? 'El material recuperado no permite una conclusión completa.' : 'Explicación del compendio; vigencia pendiente de verificar.' });
-    } catch {
-      return json({ answer: 'No se pudo obtener una respuesta verificable del proveedor. Puedes revisar los fragmentos recuperados y volver a intentarlo.', sources, generated: false, version, notice: 'No se presenta una respuesta de IA sin citas válidas.' });
+    } catch (error) {
+      const diagnostic = legalProviderNotice(error);
+      console.error('Chat jurídico: fallo de proveedor', { code: diagnostic.code, status: error instanceof LegalProviderError ? error.status : undefined });
+      return json({ answer: diagnostic.message, sources, generated: false, version, notice: `Diagnóstico: OPENAI_${diagnostic.code.toUpperCase().replaceAll('-', '_')}. Se conservan las fuentes para revisión.` });
     }
   } catch {
     return json({ error: 'No se pudo consultar la biblioteca. Revisa PostgreSQL y su configuración.' }, 503);
